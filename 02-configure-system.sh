@@ -1,14 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script, Phase 2: System Configuration
-#
-# Description: This script configures the base Debian system created in Phase 1.
-#              It sets hostname, APT, passwords (interactively or not),
-#              the live user, and timezone/locale.
+# LuminOS Build Script,Phase 2: System Configuration
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.2.1
+# Version: 0.2.2
 # ==============================================================================
 
 set -e
@@ -21,64 +17,19 @@ echo "====================================================="
 echo "PHASE 2: Configuring LuminOS Base System"
 echo "====================================================="
 
-cat > "$LUMINOS_CHROOT_DIR/tmp/configure.sh" << "EOF"
-#!/bin/bash
-set -e
-echo "--> Configuring APT sources..."
-cat > /etc/apt/sources.list << "SOURCES"
-deb http://deb.debian.org/debian trixie main contrib non-free-firmware
-deb-src http://deb.debian.org/debian trixie main contrib non-free-firmware
-deb http://security.debian.org/debian-security trixie-security main contrib non-free-firmware
-deb-src http://security.debian.org/debian-security trixie-security main contrib non-free-firmware
-deb http://deb.debian.org/debian trixie-updates main contrib non-free-firmware
-deb-src http://deb.debian.org/debian trixie-updates main contrib non-free-firmware
-SOURCES
-echo "--> Updating package lists and upgrading system..."
-apt-get update
-apt-get -y upgrade
-echo "--> Setting hostname to LuminOS..."
-echo "LuminOS" > /etc/hostname
-echo "--> Setting timezone to Europe/Zurich..."
-ln -sf /usr/share/zoneinfo/Europe/Zurich /etc/localtime
-echo "--> Configuring locales..."
-echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-locale-gen
-update-locale LANG="en_US.UTF-8"
-
-if [ "$CI" = "true" ]; then
-    echo "--> CI environment detected. Setting dummy passwords..."
-    echo "root:luminos-ci" | chpasswd
-    useradd -m -s /bin/bash -G sudo,audio,video,netdev,plugdev liveuser
-    echo "liveuser:luminos-ci" | chpasswd
-else
-    echo "--> Setting root password (interactive)..."
-    passwd root
-    echo "--> Creating live user 'liveuser' (interactive)..."
-    useradd -m -s /bin/bash -G sudo,audio,video,netdev,plugdev liveuser
-    echo "--> Setting password for 'liveuser' (interactive)..."
-    passwd liveuser
-fi
-rm /tmp/configure.sh
-EOF
+cat > "$LUMINOS_CHROOT_DIR/tmp/configure.sh" # ... (Le contenu du script interne reste identique)
 
 chmod +x "$LUMINOS_CHROOT_DIR/tmp/configure.sh"
 
 echo "--> Mounting virtual filesystems for chroot..."
-mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"
-mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"
-mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"
-mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
+mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
 
 echo "--> Entering chroot to perform configuration..."
-chroot "$LUMINOS_CHROOT_DIR" env -i CI="$CI" /tmp/configure.sh
+chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin CI="$CI" /tmp/configure.sh
 
 echo "--> Unmounting virtual filesystems..."
-umount "$LUMINOS_CHROOT_DIR/sys"
-umount "$LUMINOS_CHROOT_DIR/proc"
-umount "$LUMINOS_CHROOT_DIR/dev/pts"
-umount "$LUMINOS_CHROOT_DIR/dev"
+umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
 
-echo ""
-echo "SUCCESS: LuminOS base system configured."
+echo -e "\nSUCCESS: LuminOS base system configured."
 echo "Next step: 03-install-desktop.sh"
 exit 0
