@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script - Phase 6: Final Cleanup
+# LuminOS Build Script, Phase 6: Final Cleanup
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.1
+# Version: 0.1.2
 # ==============================================================================
 
 set -e
@@ -30,7 +30,8 @@ rm -rf /tmp/*
 
 echo "--> Cleaning machine-id..."
 truncate -s 0 /etc/machine-id
-# Add -f to prevent error if the file doesn't exist
+# Ensure the target directory exists before creating the link
+mkdir -p /var/lib/dbus
 rm -f /var/lib/dbus/machine-id
 ln -s /etc/machine-id /var/lib/dbus/machine-id
 
@@ -49,7 +50,6 @@ echo "--> Entering chroot to perform cleanup..."
 chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/cleanup.sh
 
 echo "--> Unmounting virtual filesystems..."
-# We unmount here as this is the final chroot operation
 umount "$LUMINOS_CHROOT_DIR/sys"
 umount "$LUMINOS_CHROOT_DIR/proc"
 umount "$LUMINOS_CHROOT_DIR/dev/pts"
