@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script, Phase 1: The Base System
+# LuminOS Build Script - Phase 1: Base System
 #
 # Description: This script creates a minimal Debian "Trixie" base system
 #              using debootstrap.
 #
-# Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.1
+# Author: Gemini, Technical Architect for LuminOS
+# Version: 0.1.2
 # ==============================================================================
 
 # --- Configuration ---
@@ -18,7 +18,8 @@ set -e
 LUMINOS_CHROOT_DIR="chroot"
 LUMINOS_DISTRIBUTION="trixie" # Debian 13
 LUMINOS_ARCH="amd64"
-LUMINOS_PACKAGES="build-essential,git,curl,wget,ssh,htop,neofetch,unzip,p7zip-full,neovim"
+# neofetch has been removed from this list to keep the base minimal
+LUMINOS_PACKAGES="build-essential,git,curl,wget,ssh,htop,unzip,p7zip-full,neovim"
 
 # --- Script Logic ---
 if [ "$(id -u)" -ne 0 ]; then
@@ -35,7 +36,7 @@ if [ -d "$LUMINOS_CHROOT_DIR" ]; then
     rm -rf "$LUMINOS_CHROOT_DIR"
 fi
 echo "====================================================="
-echo "PHASE 1: Creating LuminOS Base System..."
+echo "PHASE 1: Creating LuminOS Base System"
 echo "====================================================="
 debootstrap --arch=$LUMINOS_ARCH --include=$LUMINOS_PACKAGES $LUMINOS_DISTRIBUTION $LUMINOS_CHROOT_DIR http://deb.debian.org/debian
 echo ""
