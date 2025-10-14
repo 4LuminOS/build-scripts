@@ -1,34 +1,34 @@
 name: LuminOS Build Test
 
 on:
-  # Run the test every time the ‘main’ branch is updated
+  # Trigger the workflow on push events for the "main" branch
   push:
     branches: [ "main" ]
-  # Also run the test for Pull Requests
+  # Also trigger on pull request events for the "main" branch
   pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
-    # Use a fresh Ubuntu VM for each test
+    # Use a fresh Ubuntu virtual machine for each test run
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Get the code
+    # Step 1: Check out the repository code
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # Step 2: Install the necessary dependencies
+    # Step 2: Install necessary dependencies for the build
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap
+        sudo apt-get install -y debootstrap debian-archive-keyring
 
-    # NEW STEP: Makes scripts executable.
+    # Step 3: Make all shell scripts executable
     - name: Make scripts executable
       run: chmod +x *.sh
 
-    # Step 4: Run all our build scripts
+    # Step 4: Run the entire sequence of LuminOS build scripts
     - name: Run LuminOS build scripts
       run: |
         sudo ./01-build-base-system.sh
@@ -38,10 +38,10 @@ jobs:
         sudo ./05-install-ai.sh
         sudo ./06-final-cleanup.sh
       env:
-        # This variable tells our script 02 to run in a non-interactive mode.
+        # This environment variable enables non-interactive mode in script 02
         CI: true
 
-    # Step 5: Verify that the result exists
+    # Step 5: Verify that the build produced the expected output directory
     - name: Verify build output
       run: |
         echo "Build finished. Listing contents of the chroot directory:"
