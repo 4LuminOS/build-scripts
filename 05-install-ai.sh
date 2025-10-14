@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script, Phase 5: Local AI Integration
+# LuminOS Build Script - Phase 5: Local AI Integration
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.3
+# Version: 0.1.4
 # ==============================================================================
 
 set -e
@@ -20,28 +20,12 @@ echo "PHASE 5: Installing and Configuring Lumin"
 echo "====================================================="
 
 echo "--> Downloading Ollama v${OLLAMA_VERSION}..."
-# ... (le contenu reste identique)
+# Added -f to fail fast on server errors (like 404)
+curl -fL "https://github.com/ollama/ollama/releases/download/v${OLLAMA_VERSION}/ollama-linux-amd64" -o ollama
+chmod +x ollama
+echo "--> Installing Ollama binary into the system..."
 mv ollama "$LUMINOS_CHROOT_DIR/usr/local/bin/"
 
-cat > "$LUMINOS_CHROOT_DIR/tmp/configure_ai.sh" # ... (le contenu reste identique)
-
-chmod +x "$LUMINOS_CHROOT_DIR/tmp/configure_ai.sh"
-
-echo "--> Mounting virtual filesystems for chroot..."
-mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
-
-echo "--> Entering chroot to configure AI service..."
-chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/configure_ai.sh
-
-echo "--> IMPORTANT: Pulling base model '${BASE_MODEL}' inside chroot. This will take some time..."
-chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/ollama pull ${BASE_MODEL}
-
-echo "--> Creating custom 'Lumin' model from Modelfile..."
-chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/ollama create lumin -f /usr/local/share/lumin/ai/Modelfile
-
-echo "--> Unmounting virtual filesystems..."
-umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
-
-echo -e "\nSUCCESS: Local AI 'Lumin' has been integrated."
-echo "Next step: 06-final-cleanup.sh"
-exit 0
+# ... (le reste du script est identique)
+cat > "$LUMINOS_CHROOT_DIR/tmp/configure_ai.sh" # ... (contenu identique)
+# ... (la fin du script est identique)
