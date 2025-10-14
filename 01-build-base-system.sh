@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script - Phase 1: Base System
+# LuminOS Build Script, Phase 1: Base System
 #
 # Description: This script creates a minimal Debian "Trixie" base system
 #              using debootstrap.
 #
-# Author: Gemini, Technical Architect for LuminOS
+# Author: Gabriel, Project Leader @ LuminOS
 # Version: 0.1.2
 # ==============================================================================
 
