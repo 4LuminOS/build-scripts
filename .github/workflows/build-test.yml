@@ -1,0 +1,44 @@
+name: LuminOS Build Test
+
+on:
+  # Run a test every time the ‘main’ branch is updated.
+  push:
+    branches: [ "main" ]
+  # Also run the test for Pull Requests
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    #  Use a fresh Ubuntu VM for each test
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Get the code
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    # Step 2: Install the necessary dependencies
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y debootstrap
+
+    # Step 3: Run all our build scripts
+    - name: Run LuminOS build scripts
+      run: |
+        sudo ./01-build-base-system.sh
+        sudo ./02-configure-system.sh
+        sudo ./03-install-desktop.sh
+        sudo ./04-customize-desktop.sh
+        sudo ./05-install-ai.sh
+        sudo ./06-final-cleanup.sh
+      env:
+    # This variable tells our script 02 to run in a non-interactive mode 
+        CI: true
+
+    # Step 4: Make sure that the result exists
+    - name: Verify build output
+      run: |
+        echo "Build finished. Listing contents of the chroot directory:"
+        ls -lA chroot/
