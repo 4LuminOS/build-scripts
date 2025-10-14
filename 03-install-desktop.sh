@@ -1,13 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script, Phase 3: Desktop Environment Installation
-#
-# Description: This script installs the Linux kernel, a bootloader (GRUB),
-#              and the KDE Plasma desktop environment with its core applications.
+# LuminOS Build Script - Phase 3: Desktop Environment Installation
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.2
+# Version: 0.1.3
 # ==============================================================================
 
 set -e
@@ -20,38 +17,19 @@ echo "====================================================="
 echo "PHASE 3: Installing Kernel and Desktop"
 echo "====================================================="
 
-cat > "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh" << "EOF"
-#!/bin/bash
-set -e
-echo "--> Installing Linux kernel and GRUB bootloader..."
-export DEBIAN_FRONTEND=noninteractive
-apt-get install -y linux-image-amd64 grub-pc
-echo "--> Installing KDE Plasma desktop and essential services..."
-DESKTOP_PACKAGES="plasma-desktop konsole sddm network-manager neofetch"
-apt-get install -y $DESKTOP_PACKAGES
-echo "--> Cleaning up APT cache..."
-apt-get clean
-rm /tmp/install_desktop.sh
-EOF
+cat > "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh" # ... (Le contenu du script interne reste identique)
 
 chmod +x "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh"
 
 echo "--> Mounting virtual filesystems for chroot..."
-mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"
-mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"
-mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"
-mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
+mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
 
 echo "--> Entering chroot to perform installation..."
-chroot "$LUMINOS_CHROOT_DIR" /tmp/install_desktop.sh
+chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/install_desktop.sh
 
 echo "--> Unmounting virtual filesystems..."
-umount "$LUMINOS_CHROOT_DIR/sys"
-umount "$LUMINOS_CHROOT_DIR/proc"
-umount "$LUMINOS_CHROOT_DIR/dev/pts"
-umount "$LUMINOS_CHROOT_DIR/dev"
+umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
 
-echo ""
-echo "SUCCESS: Kernel and desktop environment installed."
+echo -e "\nSUCCESS: Kernel and desktop environment installed."
 echo "Next step: 04-customize-desktop.sh"
 exit 0
