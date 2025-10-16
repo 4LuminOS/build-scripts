@@ -1,26 +1,26 @@
-# LuminOS Build Scripts :)
+# LuminOS Build Scripts
 
-This repository contains the scripts and documentation for building the official LuminOS ISO image from a standard Debian base.
+This repository contains the scripts and documentation for building the official LuminOS ISO image.
 
-## Usage
+## Prerequisites
 
-The scripts are designed to be run in sequential order on a Debian-based system (like Debian, Ubuntu, ...)
-
-### Prerequisites
-
-- A Debian-based host system.
+- An Ubuntu (24.04 LTS) or Debian (12+) based host system.
 - `sudo` privileges.
-- The `debootstrap` package must be installed (`sudo apt-get install debootstrap`)
+- The following build dependencies must be installed:
+  `sudo apt-get install git live-build debootstrap debian-archive-keyring plymouth`
 
-### Build Process
+## How to Build the ISO
 
-Run the scripts in the following order as root:
-
-1.  `sudo ./01-build-base-system.sh`
-2.  `sudo ./02-configure-system.sh`
-3.  ... (more to come)
-
-## Scripts
-
--   **01-build-base-system.sh**: Creates a minimal Debian "Trixie" chroot environment which serves as the foundation of LuminOS.
--   **02-configure-system.sh**: Configures the base system within the chroot (hostname, users, updates, etc.).
+1.  Clone this repository:
+    ```bash
+    git clone [https://github.com/4LuminOS/build-scripts.git](https://github.com/4LuminOS/build-scripts.git)
+    ```
+2.  Navigate into the directory:
+    ```bash
+    cd build-scripts
+    ```
+3.  Run the master build script as root. This process will be long and will download several gigabytes of packages.
+    ```bash
+    sudo ./build.sh
+    ```
+4.  If successful, the final `.iso` file will be in the `build-scripts` folder.
