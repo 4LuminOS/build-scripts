@@ -1,34 +1,27 @@
 name: LuminOS Build Test
 
 on:
-  # Trigger the workflow on push events for the "main" branch
   push:
     branches: [ "main" ]
-  # Also trigger on pull request events for the "main" branch
   pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
-    # Use a fresh Ubuntu virtual machine for each test run
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the repository code
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # Step 2: Install necessary dependencies for the build
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap debian-archive-keyring
+        sudo apt-get install -y debootstrap debian-archive-keyring plymouth
 
-    # Step 3: Make all shell scripts executable
     - name: Make scripts executable
       run: chmod +x *.sh
 
-    # Step 4: Run the entire sequence of LuminOS build scripts
     - name: Run LuminOS build scripts
       run: |
         sudo ./01-build-base-system.sh
@@ -36,13 +29,12 @@ jobs:
         sudo ./03-install-desktop.sh
         sudo ./04-customize-desktop.sh
         sudo ./05-install-ai.sh
-        sudo ./06-final-cleanup.sh
+        sudo ./07-install-plymouth-theme.sh # Ajouté ici
+        sudo ./06-final-cleanup.sh         # Déplacé à la fin
       env:
-        # This environment variable enables non-interactive mode in script 02
         CI: true
 
-    # Step 5: Verify that the build produced the expected output directory
     - name: Verify build output
       run: |
-        echo "Build finished. Listing contents of the chroot directory:"
+        echo "Build finished! Listing contents of the chroot directory:"
         ls -lA chroot/
