@@ -4,7 +4,7 @@
 # LuminOS Build Script, Phase 4: Desktop Customization & Branding
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.2.3
+# Version: 0.2.4
 # ==============================================================================
 
 set -e
@@ -28,11 +28,17 @@ cat > "$LUMINOS_CHROOT_DIR/tmp/customize_desktop.sh" << "EOF"
 #!/bin/bash
 set -e
 export DEBIAN_FRONTEND=noninteractive
+
 echo "--> Removing unwanted packages..."
 PACKAGES_TO_REMOVE="kmahjongg kmines kpat ksnake kmail kontact akregator"
-# Added --ignore-missing to prevent errors if a package is not installed
-apt-get purge -y --ignore-missing $PACKAGES_TO_REMOVE
+# Loop through each package and purge it individually, ignoring errors if it's not found.
+for pkg in $PACKAGES_TO_REMOVE; do
+    echo "Attempting to remove $pkg..."
+    # The '|| true' ensures the script doesn't exit if the package isn't found.
+    apt-get purge -y "$pkg" || true
+done
 apt-get autoremove -y
+
 echo "--> Applying system-wide dark theme (Breeze Dark)..."
 mkdir -p /etc/skel/.config
 cat > /etc/skel/.config/kdeglobals << "KDEGLOBALS"
