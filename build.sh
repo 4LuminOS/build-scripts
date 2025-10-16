@@ -5,23 +5,20 @@ echo "===== LUMINOS MASTER BUILD SCRIPT ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Install build dependencies
-echo "--> Installing build dependencies (live-build, debootstrap)..."
+echo "--> Installing build dependencies (live-build, etc.)..."
 apt-get update
-apt-get install -y live-build debootstrap debian-archive-keyring
+apt-get install -y live-build debootstrap debian-archive-keyring plymouth
 
-# Run build phases
+# Run build phases in logical order
 ./01-build-base-system.sh
 ./02-configure-system.sh
 ./03-install-desktop.sh
 ./04-customize-desktop.sh
 ./05-install-ai.sh
-./06-final-cleanup.sh
-
-# Mount virtual filesystems for the final phases that need it
-mount --bind /dev "chroot/dev"; mount --bind /dev/pts "chroot/dev/pts"; mount -t proc /proc "chroot/proc"; mount -t sysfs /sys "chroot/sys"
+# Plymouth theme must be installed before cleanup
 ./07-install-plymouth-theme.sh
-# Unmount everything cleanly at the end
-umount "chroot/sys"; umount "chroot/proc"; umount "chroot/dev/pts"; umount "chroot/dev"
+# Final cleanup is the last step before packaging
+./06-final-cleanup.sh
 
 # --- ISO Building ---
 echo "--> Configuring live-build for ISO creation..."
@@ -29,6 +26,7 @@ echo "--> Configuring live-build for ISO creation..."
 mkdir -p live-build-config
 cd live-build-config
 
+# lb config is deprecated, using lb config noauto is the modern way
 lb config noauto \
     --architectures amd64 \
     --distribution trixie \
@@ -55,7 +53,7 @@ sudo rm -rf live-build-config
 
 echo ""
 echo "========================================="
-echo "SUCCESS: LuminOS ISO build is complete!!!"
+echo "SUCCESS: LuminOS ISO build is complete!"
 echo "Find your image in the main project folder."
 echo "========================================="
 exit 0
