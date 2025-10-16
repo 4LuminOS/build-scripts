@@ -1,23 +1,35 @@
 #!/bin/bash
 # ==============================================================================
-# LuminOS Build Script, Phase 7: Plymouth Boot Splash Theme
+# LuminOS Build Script - Phase 7: Plymouth Boot Splash Theme
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.0
+# Version: 0.1.2
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
 
+# --- Pre-flight Checks ---
+if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
+if [ ! -d "$LUMINOS_CHROOT_DIR" ]; then echo "ERROR: Chroot dir not found."; exit 1; fi
 if [ ! -f "assets/logo-plymouth.png" ]; then
     echo "ERROR: Plymouth logo not found at assets/logo-plymouth.png"
     exit 1
 fi
 
+# --- Mount virtual filesystems ---
+echo "--> Mounting virtual filesystems for chroot..."
+mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"
+mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"
+mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"
+mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
+
+# --- Main Logic ---
 echo "--> Creating Plymouth theme structure..."
 THEME_DIR="$LUMINOS_CHROOT_DIR/usr/share/plymouth/themes/luminos"
 mkdir -p "$THEME_DIR"
 cp "assets/logo-plymouth.png" "$THEME_DIR/logo.png"
 
+# Create the theme metadata file
 cat > "$THEME_DIR/luminos.plymouth" << EOF
 [Plymouth Theme]
 Name=LuminOS
@@ -29,6 +41,7 @@ ImageDir=/usr/share/plymouth/themes/luminos
 ScriptFile=/usr/share/plymouth/themes/luminos/luminos.script
 EOF
 
+# Create the theme animation script file
 cat > "$THEME_DIR/luminos.script" << EOF
 logo_image = Image("logo.png");
 logo_sprite = Sprite(logo_image);
@@ -51,8 +64,20 @@ Plymouth.SetRefreshFunction(refresh_callback);
 EOF
 
 echo "--> Installing and configuring Plymouth theme in chroot..."
-chroot "$LUMINOS_CHROOT_DIR" /bin/bash << EOF
+chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/bash << EOF
 set -e
 apt-get install -y plymouth plymouth-themes
 plymouth-set-default-theme -R luminos
+update-initramfs -u
 EOF
+
+# --- Unmount virtual filesystems ---
+echo "--> Unmounting virtual filesystems..."
+umount "$LUMINOS_CHROOT_DIR/sys"
+umount "$LUMINOS_CHROOT_DIR/proc"
+umount "$LUMINOS_CHROOT_DIR/dev/pts"
+umount "$LUMINOS_CHROOT_DIR/dev"
+
+echo ""
+echo "SUCCESS: Plymouth theme for LuminOS has been installed."
+exit 0
