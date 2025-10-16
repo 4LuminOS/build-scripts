@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# LuminOS Build Script - Phase 4: Desktop Customization & Branding
+# LuminOS Build Script, Phase 4: Desktop Customization & Branding
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.2.2
+# Version: 0.2.3
 # ==============================================================================
 
 set -e
@@ -30,7 +30,8 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 echo "--> Removing unwanted packages..."
 PACKAGES_TO_REMOVE="kmahjongg kmines kpat ksnake kmail kontact akregator"
-apt-get purge -y $PACKAGES_TO_REMOVE
+# Added --ignore-missing to prevent errors if a package is not installed
+apt-get purge -y --ignore-missing $PACKAGES_TO_REMOVE
 apt-get autoremove -y
 echo "--> Applying system-wide dark theme (Breeze Dark)..."
 mkdir -p /etc/skel/.config
