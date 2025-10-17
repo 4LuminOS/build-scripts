@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==============================================================================
-# LuminOS Build Script - Phase 2: System Configuration
+# LuminOS Build Script, Phase 2: System Configuration
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.2.3
+# Version: 0.2.4
 # ==============================================================================
 
 set -e
@@ -19,7 +19,7 @@ echo "====================================================="
 cat > "$LUMINOS_CHROOT_DIR/tmp/configure.sh" << "EOF"
 #!/bin/bash
 set -e
-export DEBIAN_FRONTEND=noninteractive # This is the critical fix
+export DEBIAN_FRONTEND=noninteractive
 
 echo "--> Configuring APT sources..."
 cat > /etc/apt/sources.list << "SOURCES"
@@ -37,6 +37,10 @@ echo "--> Setting hostname to LuminOS..."
 echo "LuminOS" > /etc/hostname
 echo "--> Setting timezone to Europe/Zurich..."
 ln -sf /usr/share/zoneinfo/Europe/Zurich /etc/localtime
+
+echo "--> Ensuring locales package is installed..."
+apt-get install -y locales
+
 echo "--> Configuring locales..."
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 locale-gen
