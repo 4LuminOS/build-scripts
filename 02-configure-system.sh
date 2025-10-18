@@ -3,7 +3,7 @@
 # LuminOS Build Script - Phase 2: System Configuration
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.2.5
+# Version: 0.3.0
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
@@ -19,6 +19,7 @@ cat > "$LUMINOS_CHROOT_DIR/tmp/configure.sh" << "EOF"
 #!/bin/bash
 set -e
 export DEBIAN_FRONTEND=noninteractive
+
 echo "--> Configuring APT sources..."
 cat > /etc/apt/sources.list << "SOURCES"
 deb http://deb.debian.org/debian trixie main contrib non-free-firmware
@@ -36,33 +37,31 @@ echo "LuminOS" > /etc/hostname
 echo "--> Setting timezone to Europe/Zurich..."
 ln -sf /usr/share/zoneinfo/Europe/Zurich /etc/localtime
 
-# The redundant 'apt-get install locales' has been removed.
-
 echo "--> Configuring locales..."
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 locale-gen
 update-locale LANG="en_US.UTF-8"
-if [ "$CI" = "true" ]; then
-    echo "--> CI environment detected. Setting dummy passwords..."
-    echo "root:luminos-ci" | chpasswd
-    useradd -m -s /bin/bash -G sudo,audio,video,netdev,plugdev liveuser
-    echo "liveuser:luminos-ci" | chpasswd
-else
-    echo "--> Setting root password (interactive)..."
-    passwd root
-    echo "--> Creating live user 'liveuser' (interactive)..."
-    useradd -m -s /bin/bash -G sudo,audio,video,netdev,plugdev liveuser
-    echo "--> Setting password for 'liveuser' (interactive)..."
-    passwd liveuser
-fi
+
+# --- Non-Interactive Password Setting ---
+echo "--> Creating live user 'liveuser'..."
+useradd -m -s /bin/bash -G sudo,audio,video,netdev,plugdev liveuser
+
+echo "--> Setting default passwords to 'luminos' for root and liveuser..."
+echo "root:luminos" | chpasswd
+echo "liveuser:luminos" | chpasswd
+
 rm /tmp/configure.sh
 EOF
 
 chmod +x "$LUMINOS_CHROOT_DIR/tmp/configure.sh"
+
 echo "--> Mounting virtual filesystems for chroot..."
 mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
+
 echo "--> Entering chroot to perform configuration..."
-chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin CI="$CI" /tmp/configure.sh
+# The PATH is now the only variable needed.
+chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/configure.sh
+
 echo "--> Unmounting virtual filesystems..."
 umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
 
