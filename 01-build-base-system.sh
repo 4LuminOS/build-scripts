@@ -1,27 +1,17 @@
 #!/bin/bash
-
 # ==============================================================================
 # LuminOS Build Script, Phase 1: Base System
 #
-# Description: This script creates a minimal Debian "Trixie" base system
-#              using debootstrap.
-#
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.2
+# Version: 0.1.3
 # ==============================================================================
-
-# --- Configuration ---
-# Stop script on any error
 set -e
-
-# --- Variables ---
 LUMINOS_CHROOT_DIR="chroot"
-LUMINOS_DISTRIBUTION="trixie" # Debian 13
+LUMINOS_DISTRIBUTION="trixie"
 LUMINOS_ARCH="amd64"
-# neofetch has been removed from this list to keep the base minimal
-LUMINOS_PACKAGES="build-essential,git,curl,wget,ssh,htop,unzip,p7zip-full,neovim"
+# Added 'locales' to ensure it's present from the very beginning.
+LUMINOS_PACKAGES="build-essential,git,curl,wget,ssh,htop,unzip,p7zip-full,neovim,locales"
 
-# --- Script Logic ---
 if [ "$(id -u)" -ne 0 ]; then
     echo "ERROR: This script must be run as root (or with sudo)."
     exit 1
