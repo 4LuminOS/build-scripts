@@ -2,19 +2,19 @@
 # ==============================================================================
 # LuminOS Build Script - Phase 5: Local AI Integration
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.3.1
+# Version: 0.3.2 (Debug Modelfile)
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
-OLLAMA_VERSION="0.1.32" # Version of the binary to install in chroot
-BASE_MODEL="llama3" # Name of the model we expect to find on host
-HOST_MODEL_DIR="/usr/share/ollama/.ollama/models" # Standard root location
+OLLAMA_VERSION="0.1.32"
+BASE_MODEL="llama3"
+HOST_MODEL_DIR="/usr/share/ollama/.ollama/models"
 
 # --- Pre-flight Checks ---
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: Must run as root."; exit 1; fi
 if [ ! -d "$LUMINOS_CHROOT_DIR" ]; then echo "ERROR: Chroot dir not found."; exit 1; fi
 if [ ! -d "${HOST_MODEL_DIR}" ]; then
-    ALT_HOST_MODEL_DIR="$HOME/.ollama/models" # User location
+    ALT_HOST_MODEL_DIR="$HOME/.ollama/models"
     if [ -d "$ALT_HOST_MODEL_DIR" ]; then
          echo "INFO: Using Ollama models found at $ALT_HOST_MODEL_DIR."
          HOST_MODEL_DIR="$ALT_HOST_MODEL_DIR"
@@ -81,8 +81,20 @@ MODELFILE
 echo "--> Setting protective ownership and permissions on Modelfile inside chroot..."
 chown root:root /usr/local/share/lumin/ai/Modelfile
 chmod 444 /usr/local/share/lumin/ai/Modelfile
+
+# --- Debugging Modelfile ---
+echo "--> Verifying Modelfile content and permissions:"
+echo "--- Modelfile Content START ---"
+cat /usr/local/share/lumin/ai/Modelfile || echo "ERROR: Could not cat Modelfile"
+echo "--- Modelfile Content END ---"
+echo "--- Modelfile Permissions ---"
+ls -l /usr/local/share/lumin/ai/Modelfile || echo "ERROR: Could not ls Modelfile"
+echo "---------------------------"
+# --- End Debugging ---
+
 echo "--> Creating custom 'Lumin' model from pre-copied base model inside chroot..."
 /usr/local/bin/ollama create lumin -f /usr/local/share/lumin/ai/Modelfile
+
 rm /tmp/configure_ai.sh
 EOF
 
@@ -93,7 +105,6 @@ echo "--> Mounting virtual filesystems for chroot configuration..."
 mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
 
 echo "--> Entering chroot to configure AI service and create model..."
-# Added HOME=/root to the environment variables passed into chroot
 chroot "$LUMINOS_CHROOT_DIR" env -i HOME=/root PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/configure_ai.sh
 
 echo "--> Unmounting virtual filesystems after configuration..."
