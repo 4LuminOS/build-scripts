@@ -32,7 +32,7 @@ echo "--> Configuring live-build for ISO creation..."
 mkdir -p live-build-config
 cd live-build-config
 
-# Explicitly set Debian mirrors
+# Explicitly set Debian mirrors and prevent inheriting host sources
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 
 lb config noauto \
@@ -40,6 +40,8 @@ lb config noauto \
     --distribution trixie \
     --parent-distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
+    --parent-archive-areas "none" \
+    --parent-debian-installer-distribution "none" \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --parent-mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
@@ -55,19 +57,16 @@ lb config noauto \
 
 # Copy our custom-built system into the live-build chroot overlay
 echo "--> Copying the customized LuminOS system into the build environment..."
-# Ensure the target directory exists
 mkdir -p config/includes.chroot/
-# Use rsync for potentially better handling of permissions/links
 rsync -a ../chroot/ config/includes.chroot/
 
 echo "--> Building the ISO. This will take a significant amount of time..."
-# Run build with sudo as live-build needs root privileges
+# Run build with sudo
 sudo lb build
 
 # Move the final ISO to the root of the project directory
 mv *.iso ..
 
-# Go back to parent directory before removing the build dir
 cd ..
 echo "--> Cleaning up live-build configuration directory..."
 sudo rm -rf live-build-config
@@ -75,6 +74,6 @@ sudo rm -rf live-build-config
 echo ""
 echo "========================================="
 echo "SUCCESS: LuminOS ISO build is complete!"
-echo "Find your image in the main project folder"
+echo "Find your image in the main project folder."
 echo "========================================="
 exit 0
