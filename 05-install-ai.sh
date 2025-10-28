@@ -2,7 +2,7 @@
 # ==============================================================================
 # LuminOS Build Script - Phase 5: Local AI Integration
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.6
+# Version: 0.1.7
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
@@ -23,13 +23,27 @@ chmod +x ollama
 echo "--> Installing Ollama binary into the system..."
 mv ollama "$LUMINOS_CHROOT_DIR/usr/local/bin/"
 
+# --- Pull the model BEFORE configuring the service ---
+# We need mounts for network access during the pull
+echo "--> Mounting virtual filesystems for model download..."
+mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
+
+echo "--> IMPORTANT: Pulling base model '${BASE_MODEL}'. This will take some time..."
+# Run pull directly using the binary, no service needed yet
+chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/ollama pull ${BASE_MODEL}
+
+echo "--> Unmounting virtual filesystems after model download..."
+umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
+
+
+# --- Configure the Service and Lumin Model ---
 # Create the script to be run inside the chroot
 cat > "$LUMINOS_CHROOT_DIR/tmp/configure_ai.sh" << EOF
 #!/bin/bash
 set -e
 echo "--> Creating dedicated 'ollama' user..."
 useradd -r -s /bin/false -m -d /usr/share/ollama ollama
-echo "--> Creating Ollama systemd service..."
+echo "--> Creating Ollama systemd service file..."
 cat > /etc/systemd/system/ollama.service << "SYSTEMD_SERVICE"
 [Unit]
 Description=Ollama API Server
@@ -44,12 +58,8 @@ RestartSec=3
 WantedBy=default.target
 SYSTEMD_SERVICE
 echo "--> Enabling Ollama service to start on boot..."
+# Enable only, don't try to start it here
 systemctl enable ollama.service
-
-echo "--> Starting Ollama service now..." # Added step
-systemctl start ollama.service # Added command
-echo "--> Waiting for Ollama service to initialize..." # Added step
-sleep 5 # Added short delay
 
 echo "--> Creating Lumin AI definition directory..."
 mkdir -p /usr/local/share/lumin/ai
@@ -61,26 +71,24 @@ MODELFILE
 echo "--> Setting protective ownership and permissions on Modelfile..."
 chown root:root /usr/local/share/lumin/ai/Modelfile
 chmod 444 /usr/local/share/lumin/ai/Modelfile
+
+echo "--> Creating custom 'Lumin' model from Modelfile..."
+# Create the model using the binary, service doesn't need to be running
+/usr/local/bin/ollama create lumin -f /usr/local/share/lumin/ai/Modelfile
+
 rm /tmp/configure_ai.sh
 EOF
 
 chmod +x "$LUMINOS_CHROOT_DIR/tmp/configure_ai.sh"
 
-# --- Mounts, Chroot Execution, Unmounts ---
-echo "--> Mounting virtual filesystems for chroot..."
+# --- Mounts, Chroot Execution, Unmounts for Configuration ---
+echo "--> Mounting virtual filesystems for chroot configuration..."
 mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
 
-echo "--> Entering chroot to configure AI service..."
+echo "--> Entering chroot to configure AI service and create model..."
 chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/configure_ai.sh
 
-echo "--> IMPORTANT: Pulling base model '${BASE_MODEL}' inside chroot. This will take some time..."
-# Note: Pulling happens *after* the service is started by configure_ai.sh
-chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/ollama pull ${BASE_MODEL}
-
-echo "--> Creating custom 'Lumin' model from Modelfile..."
-chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/ollama create lumin -f /usr/local/share/lumin/ai/Modelfile
-
-echo "--> Unmounting virtual filesystems..."
+echo "--> Unmounting virtual filesystems after configuration..."
 umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
 
 echo ""
