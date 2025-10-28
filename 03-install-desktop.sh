@@ -4,7 +4,7 @@
 # LuminOS Build Script, Phase 3: Desktop Environment Installation
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.4 (Debug Verbose APT)
+# Version: 0.1.5
 # ==============================================================================
 
 set -e
@@ -22,16 +22,19 @@ cat > "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh" << "EOF"
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
-echo "--> Updating package lists inside chroot..."
+echo "--> Updating package lists inside chroot (first pass)..."
 apt-get update
 
 echo "--> Installing Linux kernel and GRUB bootloader..."
-# Add debug options for apt
+# Keep debug options for now
 apt-get install -y -o Debug::pkgProblemResolver=yes linux-image-amd64 grub-pc
+
+echo "--> Updating package lists again before desktop install..." # Added step
+apt-get update # Added command
 
 echo "--> Installing KDE Plasma desktop and essential services (with debug)..."
 DESKTOP_PACKAGES="plasma-desktop konsole sddm network-manager neofetch"
-# Add debug options for apt
+# Keep debug options for now
 apt-get install -y -o Debug::pkgProblemResolver=yes $DESKTOP_PACKAGES
 
 echo "--> Cleaning up APT cache..."
