@@ -3,7 +3,7 @@
 # LuminOS Build Script - Phase 7: Plymouth Boot Splash Theme
 #
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.2
+# Version: 0.1.3
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
@@ -66,7 +66,8 @@ EOF
 echo "--> Installing and configuring Plymouth theme in chroot..."
 chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /bin/bash << EOF
 set -e
-apt-get install -y plymouth plymouth-themes
+# Install only the main plymouth package
+apt-get install -y plymouth
 plymouth-set-default-theme -R luminos
 update-initramfs -u
 EOF
