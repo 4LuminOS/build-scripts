@@ -14,10 +14,20 @@ jobs:
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap debian-archive-keyring plymouth
+        sudo apt-get install -y debootstrap debian-archive-keyring plymouth curl
+
+    # --- NEW STEP: Install Ollama and Pull Model on Runner ---
+    - name: Install Ollama and Pull Model
+      run: |
+        echo "Installing Ollama on runner..."
+        curl -fsSL https://ollama.com/install.sh | sudo sh
+        echo "Pulling base model on runner (this may take time)..."
+        # Run pull as root so files go to /usr/share/ollama/.ollama
+        sudo ollama pull llama3
+        echo "Model pull complete on runner."
 
     - name: Make scripts executable
       run: chmod +x *.sh
@@ -28,13 +38,14 @@ jobs:
         sudo ./02-configure-system.sh
         sudo ./03-install-desktop.sh
         sudo ./04-customize-desktop.sh
+        # Script 05 now expects model files to exist on host
         sudo ./05-install-ai.sh
-        sudo ./07-install-plymouth-theme.sh # Ajouté ici
-        sudo ./06-final-cleanup.sh         # Déplacé à la fin
+        sudo ./07-install-plymouth-theme.sh
+        sudo ./06-final-cleanup.sh
       env:
-        CI: true
+        CI: true # Keep for non-interactive password in script 02
 
     - name: Verify build output
       run: |
-        echo "Build finished! Listing contents of the chroot directory:"
+        echo "Build finished. Listing contents of the chroot directory:"
         ls -lA chroot/
