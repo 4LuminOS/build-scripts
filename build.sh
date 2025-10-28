@@ -15,7 +15,7 @@ sudo rm -rf chroot live-build-config *.iso
 # Install build dependencies
 echo "--> Installing build dependencies (live-build, etc.)..."
 apt-get update
-apt-get install -y live-build debootstrap debian-archive-keyring plymouth
+apt-get install -y live-build debootstrap debian-archive-keyring plymouth curl rsync
 
 # Run build phases in logical order
 ./01-build-base-system.sh
@@ -32,28 +32,29 @@ echo "--> Configuring live-build for ISO creation..."
 mkdir -p live-build-config
 cd live-build-config
 
-# Explicitly set Debian mirrors and prevent inheriting host sources
+# Explicitly set Debian mirrors and force Debian mode
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 
-lb config noauto \
+# Using lb config directly as lb config noauto seems less effective here
+lb config \
+    --mode debian \
     --architectures amd64 \
     --distribution trixie \
-    --parent-distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
-    --parent-archive-areas "none" \
-    --parent-debian-installer-distribution "none" \
+    --security true \
+    --updates true \
+    --backports false \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
-    --parent-mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
-    --parent-mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
-    --parent-mirror-binary "${DEBIAN_MIRROR}" \
+    --mirror-binary-security "http://security.debian.org/debian-security/" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
     --iso-volume "LuminOS 0.2" \
     --memtest none \
-    --debian-installer false
+    --debian-installer false \
+    "${@}" # Pass additional arguments if any
 
 # Copy our custom-built system into the live-build chroot overlay
 echo "--> Copying the customized LuminOS system into the build environment..."
