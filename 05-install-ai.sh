@@ -2,7 +2,7 @@
 # ==============================================================================
 # LuminOS Build Script - Phase 5: Local AI Integration
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.7
+# Version: 0.1.8
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
@@ -24,13 +24,20 @@ echo "--> Installing Ollama binary into the system..."
 mv ollama "$LUMINOS_CHROOT_DIR/usr/local/bin/"
 
 # --- Pull the model BEFORE configuring the service ---
-# We need mounts for network access during the pull
 echo "--> Mounting virtual filesystems for model download..."
 mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
+
+echo "--> Copying host DNS configuration into chroot for network access..."
+# Ensure the target directory exists
+mkdir -p "$LUMINOS_CHROOT_DIR/etc"
+cp /etc/resolv.conf "$LUMINOS_CHROOT_DIR/etc/resolv.conf"
 
 echo "--> IMPORTANT: Pulling base model '${BASE_MODEL}'. This will take some time..."
 # Run pull directly using the binary, no service needed yet
 chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/ollama pull ${BASE_MODEL}
+
+echo "--> Removing temporary host DNS configuration from chroot..."
+rm "$LUMINOS_CHROOT_DIR/etc/resolv.conf"
 
 echo "--> Unmounting virtual filesystems after model download..."
 umount "$LUMINOS_CHROOT_DIR/sys"; umount "$LUMINOS_CHROOT_DIR/proc"; umount "$LUMINOS_CHROOT_DIR/dev/pts"; umount "$LUMINOS_CHROOT_DIR/dev"
@@ -58,9 +65,7 @@ RestartSec=3
 WantedBy=default.target
 SYSTEMD_SERVICE
 echo "--> Enabling Ollama service to start on boot..."
-# Enable only, don't try to start it here
 systemctl enable ollama.service
-
 echo "--> Creating Lumin AI definition directory..."
 mkdir -p /usr/local/share/lumin/ai
 echo "--> Creating the read-only Modelfile for Lumin..."
@@ -71,11 +76,9 @@ MODELFILE
 echo "--> Setting protective ownership and permissions on Modelfile..."
 chown root:root /usr/local/share/lumin/ai/Modelfile
 chmod 444 /usr/local/share/lumin/ai/Modelfile
-
 echo "--> Creating custom 'Lumin' model from Modelfile..."
 # Create the model using the binary, service doesn't need to be running
 /usr/local/bin/ollama create lumin -f /usr/local/share/lumin/ai/Modelfile
-
 rm /tmp/configure_ai.sh
 EOF
 
