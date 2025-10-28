@@ -1,8 +1,8 @@
 #!/bin/bash
 # ==============================================================================
-# LuminOS Build Script, Phase 3: Desktop Environment Installation
+# LuminOS Build Script - Phase 3: Desktop Environment Installation
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.8
+# Version: 0.2.0 (Removed neofetch)
 # ==============================================================================
 set -e
 LUMINOS_CHROOT_DIR="chroot"
@@ -20,41 +20,20 @@ cat > "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh" << "EOF"
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
-echo "--> Forcing main Debian mirror..."
-# Overwrite sources.list just to be sure we use the main mirror
-cat > /etc/apt/sources.list << "SOURCES"
-deb http://deb.debian.org/debian trixie main contrib non-free-firmware
-deb http://security.debian.org/debian-security trixie-security main contrib non-free-firmware
-deb http://deb.debian.org/debian trixie-updates main contrib non-free-firmware
-SOURCES
-
-echo "--> Cleaning existing APT cache AND lists inside chroot..."
+echo "--> Cleaning existing APT cache inside chroot..."
 apt-get clean
-rm -rf /var/lib/apt/lists/* # Force removal of potentially corrupt lists
+rm -rf /var/lib/apt/lists/*
 
-echo "--> Updating package lists inside chroot (forcing main mirror)..."
+echo "--> Updating package lists inside chroot..."
 apt-get update
 
 echo "--> Installing Linux kernel and GRUB bootloader..."
-# Keep debug options for now
-apt-get install -y -o Debug::pkgProblemResolver=yes linux-image-amd64 grub-pc
+apt-get install -y linux-image-amd64 grub-pc
 
-echo "--> Cleaning and Updating lists again before main desktop install..."
-apt-get clean
-rm -rf /var/lib/apt/lists/*
-apt-get update
-
-echo "--> Installing CORE KDE Plasma desktop and services (with debug)..."
+echo "--> Installing CORE KDE Plasma desktop and services..."
+# neofetch removed from this list
 CORE_DESKTOP_PACKAGES="plasma-desktop konsole sddm network-manager"
-apt-get install -y -o Debug::pkgProblemResolver=yes $CORE_DESKTOP_PACKAGES
-
-echo "--> Cleaning and Updating one last time before neofetch..."
-apt-get clean
-rm -rf /var/lib/apt/lists/*
-apt-get update
-
-echo "--> Installing neofetch separately (with debug)..."
-apt-get install -y -o Debug::pkgProblemResolver=yes neofetch
+apt-get install -y $CORE_DESKTOP_PACKAGES
 
 echo "--> Final cleaning of APT cache..."
 apt-get clean
@@ -64,11 +43,11 @@ EOF
 
 chmod +x "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh"
 
-# --- Mounts, Chroot Execution, Unmounts remain the same ---
+# --- Mounts, Chroot Execution, Unmounts ---
 echo "--> Mounting virtual filesystems for chroot..."
 mount --bind /dev "$LUMINOS_CHROOT_DIR/dev"; mount --bind /dev/pts "$LUMINOS_CHROOT_DIR/dev/pts"; mount -t proc /proc "$LUMINOS_CHROOT_DIR/proc"; mount -t sysfs /sys "$LUMINOS_CHROOT_DIR/sys"
 
-echo "--> Entering chroot to perform installation (verbose)..."
+echo "--> Entering chroot to perform installation..."
 chroot "$LUMINOS_CHROOT_DIR" env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /tmp/install_desktop.sh
 
 echo "--> Unmounting virtual filesystems..."
