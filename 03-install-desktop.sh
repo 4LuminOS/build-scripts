@@ -1,17 +1,15 @@
 #!/bin/bash
-
 # ==============================================================================
 # LuminOS Build Script, Phase 3: Desktop Environment Installation
-#
 # Author: Gabriel, Project Leader @ LuminOS
-# Version: 0.1.5
+# Version: 0.1.7
 # ==============================================================================
-
 set -e
 LUMINOS_CHROOT_DIR="chroot"
 
-if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root (or with sudo)."; exit 1; fi
-if [ ! -d "$LUMINOS_CHROOT_DIR" ]; then echo "ERROR: The chroot directory '$LUMINOS_CHROOT_DIR' does not exist."; exit 1; fi
+# --- Pre-flight Checks ---
+if [ "$(id -u)" -ne 0 ]; then echo "ERROR: Must run as root."; exit 1; fi
+if [ ! -d "$LUMINOS_CHROOT_DIR" ]; then echo "ERROR: Chroot dir not found."; exit 1; fi
 
 echo "====================================================="
 echo "PHASE 3: Installing Kernel and Desktop"
@@ -22,6 +20,9 @@ cat > "$LUMINOS_CHROOT_DIR/tmp/install_desktop.sh" << "EOF"
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
+echo "--> Cleaning existing APT cache inside chroot..."
+apt-get clean
+
 echo "--> Updating package lists inside chroot (first pass)..."
 apt-get update
 
@@ -29,13 +30,20 @@ echo "--> Installing Linux kernel and GRUB bootloader..."
 # Keep debug options for now
 apt-get install -y -o Debug::pkgProblemResolver=yes linux-image-amd64 grub-pc
 
-echo "--> Updating package lists again before desktop install..." # Added step
+echo "--> Updating package lists again before main desktop install..."
+apt-get update
+
+echo "--> Installing CORE KDE Plasma desktop and services (with debug)..."
+# Install everything EXCEPT neofetch first
+CORE_DESKTOP_PACKAGES="plasma-desktop konsole sddm network-manager"
+apt-get install -y -o Debug::pkgProblemResolver=yes $CORE_DESKTOP_PACKAGES
+
+echo "--> Updating package lists one last time before neofetch..." # Added step
 apt-get update # Added command
 
-echo "--> Installing KDE Plasma desktop and essential services (with debug)..."
-DESKTOP_PACKAGES="plasma-desktop konsole sddm network-manager neofetch"
-# Keep debug options for now
-apt-get install -y -o Debug::pkgProblemResolver=yes $DESKTOP_PACKAGES
+echo "--> Installing neofetch separately (with debug)..." # Added step
+# Install neofetch in its own step
+apt-get install -y -o Debug::pkgProblemResolver=yes neofetch # Added command
 
 echo "--> Cleaning up APT cache..."
 apt-get clean
