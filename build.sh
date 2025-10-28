@@ -4,6 +4,14 @@ set -e
 echo "===== LUMINOS MASTER BUILD SCRIPT ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
+# Clean up previous build attempts first
+echo "--> Cleaning up previous build artifacts..."
+sudo umount chroot/sys &>/dev/null || true
+sudo umount chroot/proc &>/dev/null || true
+sudo umount chroot/dev/pts &>/dev/null || true
+sudo umount chroot/dev &>/dev/null || true
+sudo rm -rf chroot live-build-config *.iso
+
 # Install build dependencies
 echo "--> Installing build dependencies (live-build, etc.)..."
 apt-get update
@@ -15,22 +23,29 @@ apt-get install -y live-build debootstrap debian-archive-keyring plymouth
 ./03-install-desktop.sh
 ./04-customize-desktop.sh
 ./05-install-ai.sh
-# Plymouth theme must be installed before cleanup
 ./07-install-plymouth-theme.sh
-# Final cleanup is the last step before packaging
-./06-final-cleanup.sh
+./06-final-cleanup.sh # Final cleanup must be last before packaging
+
 
 # --- ISO Building ---
 echo "--> Configuring live-build for ISO creation..."
-# Create a temporary directory for live-build
 mkdir -p live-build-config
 cd live-build-config
 
-# lb config is deprecated, using lb config noauto is the modern way
+# Explicitly set Debian mirrors
+DEBIAN_MIRROR="http://deb.debian.org/debian/"
+
 lb config noauto \
     --architectures amd64 \
     --distribution trixie \
+    --parent-distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
+    --mirror-bootstrap "${DEBIAN_MIRROR}" \
+    --parent-mirror-bootstrap "${DEBIAN_MIRROR}" \
+    --mirror-chroot "${DEBIAN_MIRROR}" \
+    --parent-mirror-chroot "${DEBIAN_MIRROR}" \
+    --mirror-binary "${DEBIAN_MIRROR}" \
+    --parent-mirror-binary "${DEBIAN_MIRROR}" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
@@ -38,22 +53,28 @@ lb config noauto \
     --memtest none \
     --debian-installer false
 
-# Copy our custom-built system into the live-build chroot
+# Copy our custom-built system into the live-build chroot overlay
 echo "--> Copying the customized LuminOS system into the build environment..."
-sudo cp -a ../chroot/* config/includes.chroot/
+# Ensure the target directory exists
+mkdir -p config/includes.chroot/
+# Use rsync for potentially better handling of permissions/links
+rsync -a ../chroot/ config/includes.chroot/
 
 echo "--> Building the ISO. This will take a significant amount of time..."
+# Run build with sudo as live-build needs root privileges
 sudo lb build
 
 # Move the final ISO to the root of the project directory
 mv *.iso ..
 
+# Go back to parent directory before removing the build dir
 cd ..
+echo "--> Cleaning up live-build configuration directory..."
 sudo rm -rf live-build-config
 
 echo ""
 echo "========================================="
 echo "SUCCESS: LuminOS ISO build is complete!"
-echo "Find your image in the main project folder."
+echo "Find your image in the main project folder"
 echo "========================================="
 exit 0
