@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT ======"
+echo "===== LUMINOS MASTER BUILD SCRIPT ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up previous build attempts first
@@ -34,6 +34,8 @@ cd live-build-config
 
 # Explicitly set Debian mirrors and force Debian mode
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
+# Define the correct security path component
+SECURITY_COMPONENT="trixie-security" 
 
 lb config \
     --mode debian \
@@ -44,7 +46,8 @@ lb config \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
-    --mirror-binary-security "http://security.debian.org/debian-security/" \
+    # Explicitly add the distribution component to the security mirror URL
+    --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT}" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
