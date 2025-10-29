@@ -41,8 +41,7 @@ lb config \
     --distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
     --security true \
-    # --updates true \ # Removed invalid flag
-    --backports false \
+    # --backports false \ # Removed invalid flag
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
@@ -60,7 +59,7 @@ echo "--> Copying the customized LuminOS system into the build environment..."
 mkdir -p config/includes.chroot/
 rsync -a ../chroot/ config/includes.chroot/
 
-echo "--> Building the ISO. This will likely take a significant amount of time..."
+echo "--> Building the ISO. This could take a significant amount of time..."
 # Run build with sudo
 sudo lb build
 
