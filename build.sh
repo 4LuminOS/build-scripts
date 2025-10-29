@@ -45,7 +45,7 @@ lb config \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
-    --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT}/main contrib non-free-firmware" \ # Corrected security mirror path with components
+    --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT}/main contrib non-free-firmware" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
