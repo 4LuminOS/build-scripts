@@ -59,9 +59,9 @@ echo "--> Copying the customized LuminOS system into the build environment..."
 mkdir -p config/includes.chroot/
 rsync -a ../chroot/ config/includes.chroot/
 
-echo "--> Building the ISO. This could take a significant amount of time..."
-# Run build with sudo
-sudo lb build
+echo "--> Building the ISO (DEBUG MODE). This will probably take a significant amount of time..."
+# Run build with sudo and debug flags
+sudo lb build --debug --verbose
 
 # Move the final ISO to the root of the project directory
 mv *.iso ..
