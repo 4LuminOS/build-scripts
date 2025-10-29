@@ -35,14 +35,13 @@ cd live-build-config
 # Explicitly set Debian mirrors and force Debian mode
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 
-# Using lb config directly as lb config noauto seems less effective here
 lb config \
     --mode debian \
     --architectures amd64 \
     --distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
     --security true \
-    --updates true \
+    # --updates true \ # Removed invalid flag
     --backports false \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
@@ -54,14 +53,14 @@ lb config \
     --iso-volume "LuminOS 0.2" \
     --memtest none \
     --debian-installer false \
-    "${@}" # Pass additional arguments if any
+    "${@}"
 
 # Copy our custom-built system into the live-build chroot overlay
 echo "--> Copying the customized LuminOS system into the build environment..."
 mkdir -p config/includes.chroot/
 rsync -a ../chroot/ config/includes.chroot/
 
-echo "--> Building the ISO. This will take a significant amount of time..."
+echo "--> Building the ISO. This will likely take a significant amount of time..."
 # Run build with sudo
 sudo lb build
 
@@ -75,6 +74,6 @@ sudo rm -rf live-build-config
 echo ""
 echo "========================================="
 echo "SUCCESS: LuminOS ISO build is complete!"
-echo "Find your image in the main project folder."
+echo "Find your image in the main project folder"
 echo "========================================="
 exit 0
