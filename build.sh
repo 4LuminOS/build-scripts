@@ -34,8 +34,7 @@ cd live-build-config
 
 # Explicitly set Debian mirrors and force Debian mode
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
-# Define the correct security path component
-SECURITY_COMPONENT="trixie-security" 
+SECURITY_COMPONENT="trixie-security"
 
 lb config \
     --mode debian \
@@ -46,8 +45,7 @@ lb config \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
-    # Explicitly add the distribution component to the security mirror URL
-    --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT}" \
+    --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT}/main contrib non-free-firmware" \ # Corrected security mirror path with components
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
