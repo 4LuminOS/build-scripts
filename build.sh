@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT ====="
+echo "====== LUMINOS MASTER BUILD SCRIPT ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up previous build attempts first
@@ -41,7 +41,6 @@ lb config \
     --distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
     --security true \
-    # --backports false \ # Removed invalid flag
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
