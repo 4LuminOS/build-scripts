@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v2.1) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v2.2) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -34,7 +34,6 @@ lb config \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR}" \
     --mirror-binary "${DEBIAN_MIRROR}" \
-    # Corrected line: Space between security component and 'main'
     --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT} main contrib non-free-firmware" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
@@ -55,4 +54,28 @@ cp 02-configure-system.sh live-build-config/config/hooks/live/0200_configure-sys
 cp 03-install-desktop.sh live-build-config/config/hooks/live/0300_install-desktop.hook.chroot
 cp 04-customize-desktop.sh live-build-config/config/hooks/live/0400_customize-desktop.hook.chroot
 cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chroot
-cp 07-install-
+cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
+cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
+
+# Create directory for assets and copy them
+mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
+cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
+
+echo "--> Building the ISO. This will take a significant amount of time..."
+# Run build from inside the config directory
+cd live-build-config
+sudo lb build
+cd .. # Go back to root of build-scripts
+
+# Move the final ISO to the root of the project directory
+mv live-build-config/live-image-amd64.iso LuminOS-0.2-amd64.iso
+
+echo "--> Cleaning up live-build configuration directory..."
+sudo rm -rf live-build-config
+
+echo ""
+echo "========================================="
+echo "SUCCESS: LuminOS ISO build is complete!"
+echo "Find your image at: LuminOS-0.2-amd64.iso"
+echo "========================================="
+exit 0
