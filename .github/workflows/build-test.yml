@@ -17,35 +17,9 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y debootstrap debian-archive-keyring plymouth curl
+        sudo apt-get install -y live-build debootstrap debian-archive-keyring plymouth curl rsync
 
-    # --- NEW STEP: Install Ollama and Pull Model on Runner ---
-    - name: Install Ollama and Pull Model
+    - name: Run the Master Build Script
       run: |
-        echo "Installing Ollama on runner..."
-        curl -fsSL https://ollama.com/install.sh | sudo sh
-        echo "Pulling base model on runner (this may take time)..."
-        # Run pull as root so files go to /usr/share/ollama/.ollama
-        sudo ollama pull llama3
-        echo "Model pull complete on runner."
-
-    - name: Make scripts executable
-      run: chmod +x *.sh
-
-    - name: Run LuminOS build scripts
-      run: |
-        sudo ./01-build-base-system.sh
-        sudo ./02-configure-system.sh
-        sudo ./03-install-desktop.sh
-        sudo ./04-customize-desktop.sh
-        # Script 05 now expects model files to exist on host
-        sudo ./05-install-ai.sh
-        sudo ./07-install-plymouth-theme.sh
-        sudo ./06-final-cleanup.sh
-      env:
-        CI: true # Keep for non-interactive password in script 02
-
-    - name: Verify build output
-      run: |
-        echo "Build finished. Listing contents of the chroot directory:"
-        ls -lA chroot/
+        # The build.sh script now handles the entire process
+        sudo ./build.sh
