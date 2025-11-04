@@ -1,7 +1,8 @@
+
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v2.2) ====="
+echo "====== LUMINOS MASTER BUILD SCRIPT (v2.3) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -23,18 +24,19 @@ mkdir -p live-build-config
 cd live-build-config
 
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
-SECURITY_COMPONENT="trixie-security" # This is the distribution name for security
+SECURITY_MIRROR="http://security.debian.org/debian-security/"
+# We now disable auto-security and add the mirror manually
 
-lb config \
+lb config noauto \
     --mode debian \
     --architectures amd64 \
     --distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
-    --security true \
+    --security false \
+    --updates false \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
-    --mirror-chroot "${DEBIAN_MIRROR}" \
-    --mirror-binary "${DEBIAN_MIRROR}" \
-    --mirror-binary-security "http://security.debian.org/debian-security/ ${SECURITY_COMPONENT} main contrib non-free-firmware" \
+    --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
+    --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
@@ -47,9 +49,7 @@ cd .. # Go back to root of build-scripts
 
 # --- Prepare Hooks and Assets ---
 echo "--> Preparing build hooks and assets..."
-# Create directories for hooks
 mkdir -p live-build-config/config/hooks/live
-# Copy our scripts into the hooks directory, renaming them for execution order
 cp 02-configure-system.sh live-build-config/config/hooks/live/0200_configure-system.hook.chroot
 cp 03-install-desktop.sh live-build-config/config/hooks/live/0300_install-desktop.hook.chroot
 cp 04-customize-desktop.sh live-build-config/config/hooks/live/0400_customize-desktop.hook.chroot
@@ -57,17 +57,14 @@ cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chr
 cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
 cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
 
-# Create directory for assets and copy them
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
-echo "--> Building the ISO. This will take a significant amount of time..."
-# Run build from inside the config directory
+echo "--> Building the ISO. This could take a significant amount of time..."
 cd live-build-config
 sudo lb build
 cd .. # Go back to root of build-scripts
 
-# Move the final ISO to the root of the project directory
 mv live-build-config/live-image-amd64.iso LuminOS-0.2-amd64.iso
 
 echo "--> Cleaning up live-build configuration directory..."
