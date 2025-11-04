@@ -1,8 +1,7 @@
-
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v2.3) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v2.4) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -25,7 +24,6 @@ cd live-build-config
 
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 SECURITY_MIRROR="http://security.debian.org/debian-security/"
-# We now disable auto-security and add the mirror manually
 
 lb config noauto \
     --mode debian \
@@ -33,7 +31,6 @@ lb config noauto \
     --distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
     --security false \
-    --updates false \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
     --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
@@ -57,7 +54,7 @@ cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chr
 cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
 cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
 
-mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
+mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminOS
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
 echo "--> Building the ISO. This could take a significant amount of time..."
