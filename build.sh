@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v2.5) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v2.6) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -34,6 +34,7 @@ lb config noauto \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
     --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
+    --apt-indices "false" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
@@ -56,7 +57,7 @@ cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chr
 cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
 cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
 
-# Create directory for assets and copy them (CORRECTED TYPO)
+# Create directory for assets and copy them
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
