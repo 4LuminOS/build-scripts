@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v2.4) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v2.5) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -46,7 +46,9 @@ cd .. # Go back to root of build-scripts
 
 # --- Prepare Hooks and Assets ---
 echo "--> Preparing build hooks and assets..."
+# Create directories for hooks
 mkdir -p live-build-config/config/hooks/live
+# Copy our scripts into the hooks directory, renaming them for execution order
 cp 02-configure-system.sh live-build-config/config/hooks/live/0200_configure-system.hook.chroot
 cp 03-install-desktop.sh live-build-config/config/hooks/live/0300_install-desktop.hook.chroot
 cp 04-customize-desktop.sh live-build-config/config/hooks/live/0400_customize-desktop.hook.chroot
@@ -54,7 +56,8 @@ cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chr
 cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
 cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
 
-mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminOS
+# Create directory for assets and copy them (CORRECTED TYPO)
+mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
 echo "--> Building the ISO. This could take a significant amount of time..."
