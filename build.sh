@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v2.9) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v3.0) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -35,7 +35,6 @@ lb config \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
     --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
     --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR} trixie-security main contrib non-free-firmware" \
-    --apt-indices "false" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
@@ -46,7 +45,12 @@ lb config \
 
 cd .. # Go back to root of build-scripts
 
-# --- Prepare Hooks and Assets ---
+# --- Prepare Bootstrap Hooks (NEW) ---
+echo "--> Preparing bootstrap hooks (for apt fixes)..."
+mkdir -p live-build-config/config/hooks/bootstrap
+cp 00-pre-install-fixes.sh live-build-config/config/hooks/bootstrap/0001_no-contents.hook.chroot
+
+# --- Prepare Chroot Hooks (Our customization) ---
 echo "--> Preparing build hooks and assets..."
 mkdir -p live-build-config/config/hooks/live
 cp 02-configure-system.sh live-build-config/config/hooks/live/0200_configure-system.hook.chroot
@@ -56,6 +60,7 @@ cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chr
 cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
 cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
 
+# --- Prepare Assets ---
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
