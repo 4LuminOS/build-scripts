@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v2.9) ====="
+echo "====== LUMINOS MASTER BUILD SCRIPT (v2.9) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -59,7 +59,7 @@ cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.ho
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
-echo "--> Building the ISO. This will take a significant amount of time..."
+echo "--> Building the ISO. This could take a significant amount of time..."
 cd live-build-config
 sudo lb build
 cd .. # Go back to root of build-scripts
