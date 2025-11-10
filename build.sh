@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v3.0) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v3.1) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -45,14 +45,14 @@ lb config \
 
 cd .. # Go back to root of build-scripts
 
-# --- Prepare Bootstrap Hooks (NEW) ---
-echo "--> Preparing bootstrap hooks (for apt fixes)..."
-mkdir -p live-build-config/config/hooks/bootstrap
-cp 00-pre-install-fixes.sh live-build-config/config/hooks/bootstrap/0001_no-contents.hook.chroot
-
-# --- Prepare Chroot Hooks (Our customization) ---
+# --- Prepare Hooks and Assets ---
 echo "--> Preparing build hooks and assets..."
+# Create directory for live hooks
 mkdir -p live-build-config/config/hooks/live
+
+# --- Copy all hooks into the LIVE directory, in order ---
+# (Moved 00-pre-install-fixes to run first in the live stage)
+cp 00-pre-install-fixes.sh live-build-config/config/hooks/live/0001_no-contents.hook.chroot
 cp 02-configure-system.sh live-build-config/config/hooks/live/0200_configure-system.hook.chroot
 cp 03-install-desktop.sh live-build-config/config/hooks/live/0300_install-desktop.hook.chroot
 cp 04-customize-desktop.sh live-build-config/config/hooks/live/0400_customize-desktop.hook.chroot
