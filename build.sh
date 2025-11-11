@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v3.1) ======"
+echo "===== LUMINOS MASTER BUILD SCRIPT (v3.2) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -25,7 +25,7 @@ cd live-build-config
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 SECURITY_MIRROR="http://security.debian.org/debian-security/"
 
-# Using 'lb config' instead of 'lb config noauto'
+# Using 'lb config'
 lb config \
     --mode debian \
     --architectures amd64 \
@@ -47,24 +47,23 @@ cd .. # Go back to root of build-scripts
 
 # --- Prepare Hooks and Assets ---
 echo "--> Preparing build hooks and assets..."
-# Create directory for live hooks
-mkdir -p live-build-config/config/hooks/live
+# THIS IS THE CORRECT DIRECTORY FOR SCRIPTS RUN DURING THE BUILD
+mkdir -p live-build-config/config/hooks/chroot/
 
-# --- Copy all hooks into the LIVE directory, in order ---
-# (Moved 00-pre-install-fixes to run first in the live stage)
-cp 00-pre-install-fixes.sh live-build-config/config/hooks/live/0001_no-contents.hook.chroot
-cp 02-configure-system.sh live-build-config/config/hooks/live/0200_configure-system.hook.chroot
-cp 03-install-desktop.sh live-build-config/config/hooks/live/0300_install-desktop.hook.chroot
-cp 04-customize-desktop.sh live-build-config/config/hooks/live/0400_customize-desktop.hook.chroot
-cp 05-install-ai.sh live-build-config/config/hooks/live/0500_install-ai.hook.chroot
-cp 07-install-plymouth-theme.sh live-build-config/config/hooks/live/0700_install-plymouth.hook.chroot
-cp 06-final-cleanup.sh live-build-config/config/hooks/live/9999_final-cleanup.hook.chroot
+# Copy all our customization scripts into the chroot hook directory
+cp 00-pre-install-fixes.sh live-build-config/config/hooks/chroot/0001_no-contents.hook.chroot
+cp 02-configure-system.sh live-build-config/config/hooks/chroot/0200_configure-system.hook.chroot
+cp 03-install-desktop.sh live-build-config/config/hooks/chroot/0300_install-desktop.hook.chroot
+cp 04-customize-desktop.sh live-build-config/config/hooks/chroot/0400_customize-desktop.hook.chroot
+cp 05-install-ai.sh live-build-config/config/hooks/chroot/0500_install-ai.hook.chroot
+cp 07-install-plymouth-theme.sh live-build-config/config/hooks/chroot/0700_install-plymouth.hook.chroot
+cp 06-final-cleanup.sh live-build-config/config/hooks/chroot/9999_final-cleanup.hook.chroot
 
-# --- Prepare Assets ---
+# This directory is for files to be COPIED into the finished OS
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
-echo "--> Building the ISO. This could take a significant amount of time..."
+echo "--> Building the ISO. This will take a significant amount of time..."
 cd live-build-config
 sudo lb build
 cd .. # Go back to root of build-scripts
