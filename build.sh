@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v3.2) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v3.4) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -45,13 +45,18 @@ lb config \
 
 cd .. # Go back to root of build-scripts
 
-# --- Prepare Hooks and Assets ---
-echo "--> Preparing build hooks and assets..."
-# THIS IS THE CORRECT DIRECTORY FOR SCRIPTS RUN DURING THE BUILD
-mkdir -p live-build-config/config/hooks/chroot/
+# --- Prepare APT Fix (The Correct Way) ---
+echo "--> Applying apt fixes to live-build config..."
+# This is the official directory for custom apt configuration
+mkdir -p live-build-config/config/apt/apt.conf.d/
+cat > live-build-config/config/apt/apt.conf.d/99-no-contents << EOF
+Acquire::IndexTargets::deb::Contents-deb "false";
+Acquire::IndexTargets::deb-src::Contents-src "false";
+EOF
 
-# Copy all our customization scripts into the chroot hook directory
-cp 00-pre-install-fixes.sh live-build-config/config/hooks/chroot/0001_no-contents.hook.chroot
+# --- Prepare Chroot Hooks (Our customization) ---
+echo "--> Preparing build hooks and assets..."
+mkdir -p live-build-config/config/hooks/chroot/
 cp 02-configure-system.sh live-build-config/config/hooks/chroot/0200_configure-system.hook.chroot
 cp 03-install-desktop.sh live-build-config/config/hooks/chroot/0300_install-desktop.hook.chroot
 cp 04-customize-desktop.sh live-build-config/config/hooks/chroot/0400_customize-desktop.hook.chroot
@@ -59,7 +64,7 @@ cp 05-install-ai.sh live-build-config/config/hooks/chroot/0500_install-ai.hook.c
 cp 07-install-plymouth-theme.sh live-build-config/config/hooks/chroot/0700_install-plymouth.hook.chroot
 cp 06-final-cleanup.sh live-build-config/config/hooks/chroot/9999_final-cleanup.hook.chroot
 
-# This directory is for files to be COPIED into the finished OS
+# --- Prepare Assets ---
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
