@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v3.4) ====="
+echo "====== LUMINOS MASTER BUILD SCRIPT (v3.5) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # Clean up all previous build artifacts
@@ -26,6 +26,7 @@ DEBIAN_MIRROR="http://deb.debian.org/debian/"
 SECURITY_MIRROR="http://security.debian.org/debian-security/"
 
 # Using 'lb config'
+# This injects the apt configuration AT THE START, before any apt calls are made.
 lb config \
     --mode debian \
     --architectures amd64 \
@@ -41,18 +42,10 @@ lb config \
     --iso-volume "LuminOS 0.2" \
     --memtest none \
     --debian-installer false \
+    --apt-options "-o Acquire::IndexTargets::deb::Contents-deb=false -o Acquire::IndexTargets::deb-src::Contents-src=false" \
     "${@}"
 
 cd .. # Go back to root of build-scripts
-
-# --- Prepare APT Fix (The Correct Way) ---
-echo "--> Applying apt fixes to live-build config..."
-# This is the official directory for custom apt configuration
-mkdir -p live-build-config/config/apt/apt.conf.d/
-cat > live-build-config/config/apt/apt.conf.d/99-no-contents << EOF
-Acquire::IndexTargets::deb::Contents-deb "false";
-Acquire::IndexTargets::deb-src::Contents-src "false";
-EOF
 
 # --- Prepare Chroot Hooks (Our customization) ---
 echo "--> Preparing build hooks and assets..."
@@ -68,7 +61,7 @@ cp 06-final-cleanup.sh live-build-config/config/hooks/chroot/9999_final-cleanup.
 mkdir -p live-build-config/config/includes.chroot/usr/share/wallpapers/luminos
 cp assets/* live-build-config/config/includes.chroot/usr/share/wallpapers/luminos/
 
-echo "--> Building the ISO. This will take a significant amount of time..."
+echo "--> Building the ISO. This could take a significant amount of time..."
 cd live-build-config
 sudo lb build
 cd .. # Go back to root of build-scripts
