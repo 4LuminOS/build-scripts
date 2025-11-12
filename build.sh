@@ -1,23 +1,17 @@
 #!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status.
+# Exit immediately if a command exits with a non-zero status
 set -e
 
 echo "Starting the LuminOS build process..."
 echo "This may take a significant amount of time depending on your system and network speed."
 
-# Define the Debian mirror
+# Define our Debian mirror
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 SECURITY_MIRROR="http://security.debian.org/"
 
-# Ensure we are in the 'live-build-config' directory
-if [ ! -d "live-build-config" ]; then
-    echo "Error: 'live-build-config' directory not found."
-    echo "Please run this script from the root of the 'build-scripts' repository."
-    exit 1
-fi
-
-cd live-build-config
+# NOTE: We assume this script is already running from
+# inside the 'live-build-config' directory.
 
 # Start from a clean slate
 echo "Cleaning previous build environment..."
@@ -44,15 +38,12 @@ lb config \
     --apt-get-options "-y" \
     "${@}"
 
-cd .. # Go back to root of build-scripts
-
 # Run the build
 echo "Starting the build... This is the long part."
-# This command is relative to the root of the build-scripts directory
-# and tells live-build to run inside the 'live-build-config' subdirectory.
-lb build --verbose --debug -d live-build-config
+# We run 'lb build' directly. It will build in the current directory.
+lb build --verbose --debug
 
 echo "-------------------------------------"
 echo "Build complete!"
-echo "Your ISO file should be in the 'live-build-config' directory."
+echo "Your ISO file should be in this directory."
 echo "-------------------------------------"
