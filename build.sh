@@ -1,74 +1,104 @@
 #!/bin/bash
 set -e
 
-echo "Starting the LuminOS build process..."
-echo "This may take a significant time depending on your system and network speed."
-echo ""
+echo "====== LUMINOS MASTER BUILD SCRIPT (v4.0) ======"
+if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
-# Define base directory relative to the script location
-SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-BASE_DIR=$(realpath "$SCRIPT_DIR/..")
-LB_CONFIG_DIR="$SCRIPT_DIR"
+# --- 1. Define Directories ---
+# BASE_DIR is the directory this script is in (build-scripts)
+BASE_DIR=$(dirname "$(readlink -f "$0")")
+LB_CONFIG_DIR="${BASE_DIR}/live-build-config"
 
-# Ensure we are in the base directory
-cd "$BASE_DIR"
+# --- 2. Clean Up ---
+echo "--> Cleaning up previous build artifacts..."
+# Clean up any old mounts
+sudo umount "${LB_CONFIG_DIR}/chroot/sys" &>/dev/null || true
+sudo umount "${LB_CONFIG_DIR}/chroot/proc" &>/dev/null || true
+sudo umount "${LB_CONFIG_DIR}/chroot/dev/pts" &>/dev/null || true
+sudo umount "${LB_CONFIG_DIR}/chroot/dev" &>/dev/null || true
+# Remove old build directories and ISOs
+sudo rm -rf "${LB_CONFIG_DIR}"
+sudo rm -rf "${BASE_DIR}/chroot"
+sudo rm -f "${BASE_DIR}"/*.iso
 
-# --- 1. Clean previous build environment ---
-echo "Cleaning previous build environment..."
-# We must be in the base dir to run lb clean
-cd "$LB_CONFIG_DIR"
-lb clean
-cd "$BASE_DIR"
+# Recreate the config directory
+mkdir -p "${LB_CONFIG_DIR}"
 
-echo "P: Cleaning chroot"
-# The 'lb clean' command might not remove everything, especially on failure.
-# We'll manually clean the chroot and binary directories just in case.
-sudo rm -rf "$BASE_DIR/chroot"
-sudo rm -rf "$BASE_DIR/binary"
-# Recreate directories for subsequent steps
-mkdir -p "$BASE_DIR/chroot"
-mkdir -p "$BASE_DIR/binary"
+# --- 3. Install Dependencies (on host) ---
+echo "--> Installing build dependencies..."
+apt-get update
+apt-get install -y live-build debootstrap debian-archive-keyring plymouth curl rsync
 
+# --- 4. Prepare Hooks and Assets (before config) ---
+# This is the correct directory for customization scripts
+HOOK_DIR="${LB_CONFIG_DIR}/config/hooks/chroot/"
+echo "--> Preparing build hooks in ${HOOK_DIR}"
+mkdir -p "${HOOK_DIR}"
+# We copy the numbered scripts directly
+cp "${BASE_DIR}/02-configure-system.sh" "${HOOK_DIR}/0200_configure-system.hook.chroot"
+cp "${BASE_DIR}/03-install-desktop.sh" "${HOOK_DIR}/0300_install-desktop.hook.chroot
+cp "${BASE_DIR}/04-customize-desktop.sh" "${HOOK_DIR}/0400_customize-desktop.hook.chroot
+cp "${BASE_DIR}/05-install-ai.sh" "${HOOK_DIR}/0500_install-ai.hook.chroot
+cp "${BASE_DIR}/07-install-plymouth-theme.sh" "${HOOK_DIR}/0700_install-plymouth.hook.chroot
+cp "${BASE_DIR}/06-final-cleanup.sh" "${HOOK_DIR}/9999_final-cleanup.hook.chroot"
 
-# --- 2. Configure the build environment ---
-echo "Configuring the build environment..."
-cd "$LB_CONFIG_DIR"
+# This directory is for files to be COPIED into the finished OS
+ASSET_DIR="${LB_CONFIG_DIR}/config/includes.chroot/usr/share/wallpapers/luminos"
+echo "--> Preparing assets in ${ASSET_DIR}"
+mkdir -p "${ASSET_DIR}"
+cp "${BASE_DIR}/assets/"* "${ASSET_DIR}/"
 
-# Define Mirrors
+# --- 5. Configure Live-Build ---
+echo "--> Configuring live-build..."
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 SECURITY_MIRROR="http://security.debian.org/ trixie-security main contrib non-free-firmware"
 
-# Run lb config
-# Note: --apt-options requires a single string argument.
-# We pass --yes (or -y) to apt to auto-confirm,
-# and disable Contents-deb/Contents-src to speed up updates.
-lb_config \
-    -mode debian \
+# We run 'lb config' from the *base* directory,
+# telling it where its config is with '-d'
+lb config -d "${LB_CONFIG_DIR}" \
+    --mode debian \
     --architectures amd64 \
     --distribution trixie \
     --archive-areas "main contrib non-free-firmware" \
     --security false \
-    --mirror-bootstrap "$DEBIAN_MIRROR" \
-    --mirror-chroot "$DEBIAN_MIRROR | $SECURITY_MIRROR" \
-    --mirror-binary "$DEBIAN_MIRROR | $SECURITY_MIRROR" \
+    --mirror-bootstrap "${DEBIAN_MIRROR}" \
+    --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
+    --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
-    --iso-application "LuminOS Project" \
+    --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
     --iso-volume "LuminOS 0.2" \
     --memtest none \
     --debian-installer false \
-    --apt-options '--yes -o "Acquire::IndexTargets::deb::Contents-deb=false" -o "Acquire::IndexTargets::deb::src::Contents-src=false"'
+    --apt-options '--yes -o "Acquire::IndexTargets::deb::Contents-deb=false" -o "Acquire::IndexTargets::deb::src::Contents-src=false"' \
+    "${@}"
 
+# --- 6. Run the Build ---
+echo "--> Building the ISO. This could take a significant amount of time..."
+sudo lb build -d "${LB_CONFIG_DIR}"
 
-# --- 3. Run the build ---
-echo "Running the build (lb build)..."
-# We run build from inside the config dir
-sudo lb build --verbose --debug
+# --- 7. Finalize ---
+echo "--> Moving final ISO..."
+# live-build usually places the ISO in the directory where it was run (or configured)
+# Depending on version, it might be inside live-build-config OR at the root.
+# We check both.
+if [ -f "${LB_CONFIG_DIR}/live-image-amd64.iso" ]; then
+    mv "${LB_CONFIG_DIR}/live-image-amd64.iso" "${BASE_DIR}/LuminOS-0.2-amd64.iso"
+elif [ -f "${BASE_DIR}/live-image-amd64.iso" ]; then
+    mv "${BASE_DIR}/live-image-amd64.iso" "${BASE_DIR}/LuminOS-0.2-amd64.iso"
+fi
 
-cd "$BASE_DIR"
+echo "--> Cleaning up live-build configuration directory..."
+sudo rm -rf "${LB_CONFIG_DIR}"
 
-# --- 4. Post-build cleanup or artifact handling (if any) ---
-echo "Build process finished."
-echo "ISO image should be located in the main project directory."
-
+echo ""
+echo "========================================="
+if [ -f "${BASE_DIR}/LuminOS-0.2-amd64.iso" ]; then
+    echo "SUCCESS: LuminOS ISO build is complete!"
+    echo "Find your image at: ${BASE_DIR}/LuminOS-0.2-amd64.iso"
+else
+    echo "ERROR: Build finished but ISO file not found. Sorry!"
+    exit 1
+fi
+echo "========================================="
 exit 0
