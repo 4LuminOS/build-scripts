@@ -2,6 +2,8 @@
 
 [![Build Test](https://github.com/4LuminOS/build-scripts/actions/workflows/build-test.yml/badge.svg)](https://github.com/4LuminOS/build-scripts/actions/workflows/build-test.yml)
 
+# This README is NOT up to date. It'll be revamped for the next functional ISO. Thank you.
+
 This repository contains the scripts and documentation for building the official **LuminOS v0.2** ISO image. LuminOS aims to be a free, private, and intelligent Linux distribution, mainly built for modern machines.
 
 ## Project Goals (v0.2)
