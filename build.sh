@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v4.2) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v4.3) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories ---
@@ -25,7 +25,41 @@ echo "--> Installing build dependencies..."
 apt-get update
 apt-get install -y live-build debootstrap debian-archive-keyring plymouth curl rsync
 
-# --- 4. Prepare Hooks and Assets ---
+# --- 4. Configure Live-Build ---
+echo "--> Configuring live-build..."
+cd "${LB_CONFIG_DIR}"
+
+DEBIAN_MIRROR="http://deb.debian.org/debian/"
+SECURITY_MIRROR="http://security.debian.org/ trixie-security main contrib non-free-firmware"
+
+lb config \
+    --mode debian \
+    --architectures amd64 \
+    --distribution trixie \
+    --archive-areas "main contrib non-free-firmware" \
+    --security false \
+    --mirror-bootstrap "${DEBIAN_MIRROR}" \
+    --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
+    --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
+    --bootappend-live "boot=live components locales=en_US.UTF-8" \
+    --iso-application "LuminOS" \
+    --iso-publisher "LuminOS Project" \
+    --iso-volume "LuminOS 0.2" \
+    --memtest none \
+    --debian-installer false \
+    "${@}"
+
+# --- 5. Apply Fixes & Prepare Assets ---
+
+# FIX: Manually create apt configuration to ignore Contents files (Fixes 404/gzip error)
+echo "--> Applying APT configuration fix..."
+mkdir -p config/apt
+cat > config/apt/apt.conf << EOF
+Acquire::IndexTargets::deb::Contents-deb "false";
+Acquire::IndexTargets::deb-src::Contents-src "false";
+EOF
+
+# Prepare Hooks
 HOOK_DIR="${LB_CONFIG_DIR}/config/hooks/chroot"
 echo "--> Preparing build hooks in ${HOOK_DIR}"
 mkdir -p "${HOOK_DIR}"
@@ -43,59 +77,27 @@ echo "--> Preparing assets in ${ASSET_DIR}"
 mkdir -p "${ASSET_DIR}"
 cp "${BASE_DIR}/assets/"* "${ASSET_DIR}/"
 
-# --- 5. Configure Live-Build ---
-echo "--> Configuring live-build..."
-DEBIAN_MIRROR="http://deb.debian.org/debian/"
-SECURITY_MIRROR="http://security.debian.org/ trixie-security main contrib non-free-firmware"
-
-# Go INTO the directory to configure
-cd "${LB_CONFIG_DIR}"
-
-lb config \
-    --mode debian \
-    --architectures amd64 \
-    --distribution trixie \
-    --archive-areas "main contrib non-free-firmware" \
-    --security false \
-    --mirror-bootstrap "${DEBIAN_MIRROR}" \
-    --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
-    --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
-    --bootappend-live "boot=live components locales=en_US.UTF-8" \
-    --iso-application "LuminOS" \
-    --iso-publisher "LuminOS Project" \
-    --iso-volume "LuminOS 0.2" \
-    --memtest none \
-    --debian-installer false \
-    --apt-options '--yes -o "Acquire::IndexTargets::deb::Contents-deb=false" -o "Acquire::IndexTargets::deb::src::Contents-src=false"' \
-    "${@}"
-
 # --- 6. Run the Build ---
 echo "--> Building the ISO..."
-# Run build inside the directory
 sudo lb build
 
-# Go back to base
+# --- 7. Finalize ---
+# Go back to base dir
 cd "${BASE_DIR}"
 
-# --- 7. Finalize ---
-echo "--> Moving final ISO..."
+echo "--> Checking for ISO..."
 if [ -f "${LB_CONFIG_DIR}/live-image-amd64.iso" ]; then
+    echo "--> Moving ISO to project root..."
     mv "${LB_CONFIG_DIR}/live-image-amd64.iso" "${BASE_DIR}/LuminOS-0.2-amd64.iso"
-elif [ -f "${BASE_DIR}/live-image-amd64.iso" ]; then
-    mv "${BASE_DIR}/live-image-amd64.iso" "${BASE_DIR}/LuminOS-0.2-amd64.iso"
-fi
-
-echo "--> Cleaning up..."
-sudo rm -rf "${LB_CONFIG_DIR}"
-
-echo ""
-echo "========================================="
-if [ -f "${BASE_DIR}/LuminOS-0.2-amd64.iso" ]; then
+    echo "--> Cleaning up build directory..."
+    sudo rm -rf "${LB_CONFIG_DIR}"
+    echo ""
+    echo "========================================="
     echo "SUCCESS: LuminOS ISO build is complete!"
     echo "Find your image at: ${BASE_DIR}/LuminOS-0.2-amd64.iso"
+    echo "========================================="
+    exit 0
 else
-    echo "ERROR: Build finished but ISO file not found."
+    echo "ERROR: Build finished but ISO file not found in ${LB_CONFIG_DIR}"
     exit 1
 fi
-echo "========================================="
-exit 0
