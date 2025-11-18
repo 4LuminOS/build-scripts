@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v4.1) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v4.2) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories ---
@@ -30,7 +30,6 @@ HOOK_DIR="${LB_CONFIG_DIR}/config/hooks/chroot"
 echo "--> Preparing build hooks in ${HOOK_DIR}"
 mkdir -p "${HOOK_DIR}"
 
-# Copy hooks one by one (ensuring newlines)
 cp "${BASE_DIR}/02-configure-system.sh" "${HOOK_DIR}/0200_configure-system.hook.chroot"
 cp "${BASE_DIR}/03-install-desktop.sh" "${HOOK_DIR}/0300_install-desktop.hook.chroot"
 cp "${BASE_DIR}/04-customize-desktop.sh" "${HOOK_DIR}/0400_customize-desktop.hook.chroot"
@@ -49,7 +48,10 @@ echo "--> Configuring live-build..."
 DEBIAN_MIRROR="http://deb.debian.org/debian/"
 SECURITY_MIRROR="http://security.debian.org/ trixie-security main contrib non-free-firmware"
 
-lb config -d "${LB_CONFIG_DIR}" \
+# Go INTO the directory to configure
+cd "${LB_CONFIG_DIR}"
+
+lb config \
     --mode debian \
     --architectures amd64 \
     --distribution trixie \
@@ -69,7 +71,11 @@ lb config -d "${LB_CONFIG_DIR}" \
 
 # --- 6. Run the Build ---
 echo "--> Building the ISO..."
-sudo lb build -d "${LB_CONFIG_DIR}"
+# Run build inside the directory
+sudo lb build
+
+# Go back to base
+cd "${BASE_DIR}"
 
 # --- 7. Finalize ---
 echo "--> Moving final ISO..."
