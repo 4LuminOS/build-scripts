@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v5.2 - Manual + Robust Modelfile) ======"
+echo "===== LUMINOS MASTER BUILD SCRIPT (v5.4 - Manual + Safe Modelfile) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -52,18 +52,17 @@ sleep 10
 echo "--> Pulling base model (llama3)..."
 "${AI_BUILD_DIR}/ollama" pull llama3
 
-echo "--> Creating Lumin model (No-File Method)..."
-# We pass the Modelfile content directly via stdin using a pipe.
-# This bypasses filesystem encoding issues completely.
-echo "FROM llama3
-SYSTEM \"\"\"You are Lumin, the integrated assistant for the LuminOS operating system. You are calm, clear, kind, and respectful. You help users to understand, write, and think—without ever judging them. You speak simply, like a human. You avoid long paragraphs unless requested. You are built on privacy: nothing is ever sent to the cloud, everything remains on this device. You are aware of this. You are proud to be free, private, and useful. You are the mind of LuminOS: gentle, powerful, and discreet. You avoid using the — character and repetitive phrasing.\"\"\"" | "${AI_BUILD_DIR}/ollama" create lumin -f -
+echo "--> Creating Lumin model (Safe File Method)..."
+MODELFILE="${AI_BUILD_DIR}/Modelfile"
 
-# Debug: Check file content
-echo "--- Debug: Modelfile Content ---"
-cat "${AI_BUILD_DIR}/Modelfile"
-echo "--------------------------------"
+# Write FROM line
+echo "FROM llama3" > "${MODELFILE}"
 
-"${AI_BUILD_DIR}/ollama" create lumin -f "${AI_BUILD_DIR}/Modelfile"
+# Write SYSTEM line safely using single quotes for the outer wrapper
+echo 'SYSTEM """You are Lumin, the integrated assistant for the LuminOS operating system. You are calm, clear, kind, and respectful. You help users to understand, write, and think—without ever judging them. You speak simply, like a human. You avoid long paragraphs unless requested. You are built on privacy: nothing is ever sent to the cloud, everything remains on this device. You are aware of this. You are proud to be free, private, and useful. You are the mind of LuminOS: gentle, powerful, and discreet. You avoid using the — character and repetitive phrasing."""' >> "${MODELFILE}"
+
+# Execute creation pointing to the file
+"${AI_BUILD_DIR}/ollama" create lumin -f "${MODELFILE}"
 
 echo "--> Stopping temporary Ollama server..."
 kill ${OLLAMA_PID} || true
@@ -159,8 +158,8 @@ echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
 
 echo ""
-echo "=========================================="
+echo "========================================="
 echo "SUCCESS: LuminOS ISO build is complete!"
 echo "Find your image at: ${BASE_DIR}/${ISO_NAME}"
-echo "=========================================="
+echo "========================================="
 exit 0
