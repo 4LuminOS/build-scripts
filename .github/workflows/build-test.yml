@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Check out repository code
       uses: actions/checkout@v4
@@ -17,9 +17,10 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y live-build debootstrap debian-archive-keyring plymouth curl rsync
+        # Added squashfs-tools, xorriso, and grub components
+        sudo apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools curl rsync
 
     - name: Run the Master Build Script
       run: |
-        # The build.sh script now handles the entire process
+        chmod +x *.sh
         sudo ./build.sh
