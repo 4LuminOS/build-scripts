@@ -1,76 +1,63 @@
-# LuminOS Build Scripts
+# LuminOS Build Scripts 
+19.11.2025
 
-[![Build Test](https://github.com/4LuminOS/build-scripts/actions/workflows/build-test.yml/badge.svg)](https://github.com/4LuminOS/build-scripts/actions/workflows/build-test.yml)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 
-# This README is NOT up to date. It'll be revamped for the next functional ISO. Thank you.
+Welcome to the official build repository for **LuminOS**.
 
-This repository contains the scripts and documentation for building the official **LuminOS v0.2** ISO image. LuminOS aims to be a free, private, and intelligent Linux distribution, mainly built for modern machines.
+**LuminOS** is a lightweight, private, and intelligent Linux distribution based on Debian "Trixie". It features native integration of **Lumin**, a local, offline, and ethical AI assistant. By running this script, you will obtain the first version of LuminOS in the form of an .ISO file. Please note that this version of LuminOS is an alpha version and may not be stable and/or not contain all the features mentioned.
 
-## Project Goals (v0.2)
+---
 
-* **Base:** Debian 13 "Trixie" (Testing).
-* **Desktop:** KDE Plasma (dark theme, customized).
-* **Core Feature:** Integrated, 100% local AI assistant "Lumin" (powered by Ollama + Llama 3).
-* **Philosophy:** Privacy-focused, no cloud dependencies, FOSS-first, modern look.
-* **Branding:** Custom LuminOS Plymouth splash screen and basic branding.
+## 🏗️ Build Architecture (v0.2)
 
-## Prerequisites
+We utilize a **transparent, manual build process** (bypassing the complexity of `live-build` wrappers) to ensure maximum stability and customization.
 
-* An **Ubuntu (24.04 LTS recommended)** or Debian (12+) based host system.
-* `sudo` privileges.
-* Approximately **30-40 GB** of free disk space.
-* An active internet connection (especially for the first build).
-* The following build dependencies must be installed:
-    ```bash
-    sudo apt update
-    sudo apt install git live-build debootstrap debian-archive-keyring plymouth curl rsync
-    ```
-* **For AI:** You must pre-download the AI model on your host machine before running the build:
-    ```bash
-    # Install Ollama on host if you haven't already
-    curl -fsSL [https://ollama.com/install.sh](https://ollama.com/install.sh) | sh
-    # Pull the required base model
-    ollama pull llama3
-    ```
+The master script `build.sh` orchestrates the entire pipeline:
+1.  **AI Preparation:** Downloads Ollama and the Llama 3 model on the host to avoid chroot network issues.
+2.  **Bootstrap:** Creates a pristine Debian base system using `debootstrap`.
+3.  **Injection:** Copies scripts, assets, and the pre-downloaded AI models into the system.
+4.  **Customization (Chroot):** Installs the Kernel, KDE Plasma, LuminOS Theme, and configures Lumin (the AI).
+5.  **Assembly:** Compresses the filesystem (`SquashFS`) and generates a Hybrid ISO (BIOS/UEFI) using `grub-mkrescue`.
 
-## How to Build the ISO
+## 🚀 Prerequisites
+
+To build LuminOS, you need a host machine running **Ubuntu 24.04 LTS** or **Debian 12+**.
+
+* **Disk Space:** ~30 GB free.
+* **RAM:** 8 GB minimum recommended.
+* **Internet:** Required to download packages and the AI model (~5 GB).
+* **Privileges:** `sudo` access is required.
+
+The script automatically installs the necessary dependencies:
+`debootstrap`, `squashfs-tools`, `xorriso`, `grub-pc-bin`, `grub-efi-amd64-bin`, `mtools`, `curl`, `rsync`.
+
+## 🛠️ Build Instructions
 
 1.  **Clone the repository:**
     ```bash
     git clone [https://github.com/4LuminOS/build-scripts.git](https://github.com/4LuminOS/build-scripts.git)
-    ```
-2.  **Navigate into the directory:**
-    ```bash
     cd build-scripts
     ```
-3.  **(Optional but Recommended) Ensure latest version:**
-    ```bash
-    git pull
-    ```
-4.  **Run the master build script as root:**
-    * **Warning:** This process WILL take a significant amount of time (potentially several hours) and will download several gigabytes of packages.
+
+2.  **Run the build:**
     ```bash
     sudo ./build.sh
     ```
-5.  **Result:** If successful, the final ISO image (e.g., `live-image-amd64.iso`) will be located in the `build-scripts` folder.
 
-## Build Scripts Overview
+3.  **Retrieve the ISO:**
+    Once completed (30 to 60 minutes depending on connection), the final image will be located here:
+    `LuminOS-0.2-amd64.iso`
 
-The `build.sh` script orchestrates the following phases:
+## 🤖 About Lumin (AI)
 
-* **01-build-base-system.sh:** Creates a minimal Debian "Trixie" chroot environment
-* **02-configure-system.sh:** Configures the base system (hostname, users, updates, locales)
-* **03-install-desktop.sh:** Installs the Linux kernel, GRUB, and KDE Plasma
-* **04-customize-desktop.sh:** Removes unwanted packages, applies basic themes & wallpapers, brands OS
-* **05-install-ai.sh:** Installs Ollama binary, copies pre-downloaded model, creates "Lumin" model & base services
-* **07-install-plymouth-theme.sh:** Installs the custom LuminOS boot splash screen
-* **06-final-cleanup.sh:** Cleans the system before packaging.
-* **(build.sh):** Configures `live-build` and generates the final bootable ISO.
+LuminOS v0.2 features a 100% local AI integration.
+* **Model:** Based on Llama 3 (may change to a newer version in futur releases)
+* **Privacy:** No data ever leaves your machine.
+* **Initialization:** The model is prepared during the build process. On the very first boot, a system service finalizes the Lumin setup in the background.
+* Lumin will be at the heart of LuminOS and will be integrated more deeply as future versions of LuminOS are released
 
-## Contributing
+---
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
-## License
-
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+**License:** GPL-3.0
+*Built with passion for digital freedom. <3* 
