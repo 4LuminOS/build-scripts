@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v4.4) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v4.5) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories ---
@@ -37,28 +37,18 @@ cp "${BASE_DIR}/05-install-ai.sh" "${HOOK_DIR}/0500_install-ai.hook.chroot"
 cp "${BASE_DIR}/07-install-plymouth-theme.sh" "${HOOK_DIR}/0700_install-plymouth.hook.chroot"
 cp "${BASE_DIR}/06-final-cleanup.sh" "${HOOK_DIR}/9999_final-cleanup.hook.chroot"
 
-# Prepare Assets (Wallpaper)
+# Prepare Assets
 ASSET_DIR="${LB_CONFIG_DIR}/config/includes.chroot/usr/share/wallpapers/luminos"
 mkdir -p "${ASSET_DIR}"
 cp "${BASE_DIR}/assets/"* "${ASSET_DIR}/"
 
-# --- 5. APPLY APT FIX (The "Nuclear" Option) ---
-# We inject the config file directly into the OS filesystem structure.
-# This ensures apt sees it regardless of live-build's internal logic.
-APT_CONF_DIR="${LB_CONFIG_DIR}/config/includes.chroot/etc/apt/apt.conf.d"
-echo "--> Injecting strict APT configuration into ${APT_CONF_DIR}"
-mkdir -p "${APT_CONF_DIR}"
-cat > "${APT_CONF_DIR}/99-no-contents" << EOF
-Acquire::IndexTargets::deb::Contents-deb "false";
-Acquire::IndexTargets::deb-src::Contents-src "false";
-EOF
-
-# --- 6. Configure Live-Build ---
+# --- 5. Configure Live-Build ---
 echo "--> Configuring live-build..."
-DEBIAN_MIRROR="http://deb.debian.org/debian/"
-SECURITY_MIRROR="http://security.debian.org/ trixie-security main contrib non-free-firmware"
 
-# Enter config directory
+# SWITCHING MIRRORS: Using primary ftp.debian.org instead of redirector
+DEBIAN_MIRROR="http://ftp.debian.org/debian/"
+SECURITY_MIRROR="http://security.debian.org/debian-security/"
+
 cd "${LB_CONFIG_DIR}"
 
 lb config \
@@ -68,8 +58,9 @@ lb config \
     --archive-areas "main contrib non-free-firmware" \
     --security false \
     --mirror-bootstrap "${DEBIAN_MIRROR}" \
-    --mirror-chroot "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
-    --mirror-binary "${DEBIAN_MIRROR} | ${SECURITY_MIRROR}" \
+    --mirror-chroot "${DEBIAN_MIRROR}" \
+    --mirror-binary "${DEBIAN_MIRROR}" \
+    --mirror-binary-security "${SECURITY_MIRROR}" \
     --bootappend-live "boot=live components locales=en_US.UTF-8" \
     --iso-application "LuminOS" \
     --iso-publisher "LuminOS Project" \
@@ -77,8 +68,17 @@ lb config \
     --memtest none \
     --debian-installer false \
     --apt-indices false \
-    --apt-options '--yes -o "Acquire::IndexTargets::deb::Contents-deb=false" -o "Acquire::IndexTargets::deb::src::Contents-src=false"' \
+    --apt-options '--yes -o Acquire::IndexTargets::deb::Contents-deb=false -o Acquire::IndexTargets::deb-src::Contents-src=false' \
     "${@}"
+
+# --- 6. Inject APT Configuration (Double Safety) ---
+# We force the configuration file into the chroot includes again
+APT_CONF_DIR="${LB_CONFIG_DIR}/config/includes.chroot/etc/apt/apt.conf.d"
+mkdir -p "${APT_CONF_DIR}"
+cat > "${APT_CONF_DIR}/99-no-contents" << EOF
+Acquire::IndexTargets::deb::Contents-deb "false";
+Acquire::IndexTargets::deb-src::Contents-src "false";
+EOF
 
 # --- 7. Run the Build ---
 echo "--> Building the ISO..."
