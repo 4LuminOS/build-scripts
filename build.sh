@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v5.4 - Manual + Safe Modelfile) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v5.5 - Defer AI Create) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -34,7 +34,7 @@ apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64
 
 # --- 4. PREPARE AI (ON HOST) ---
 echo "====================================================="
-echo "PHASE 0: Pre-building Lumin AI on Host"
+echo "PHASE 0: Pre-downloading AI Models"
 echo "====================================================="
 export OLLAMA_MODELS="${AI_BUILD_DIR}/models"
 mkdir -p "${OLLAMA_MODELS}"
@@ -52,22 +52,14 @@ sleep 10
 echo "--> Pulling base model (llama3)..."
 "${AI_BUILD_DIR}/ollama" pull llama3
 
-echo "--> Creating Lumin model (Safe File Method)..."
-MODELFILE="${AI_BUILD_DIR}/Modelfile"
-
-# Write FROM line
-echo "FROM llama3" > "${MODELFILE}"
-
-# Write SYSTEM line safely using single quotes for the outer wrapper
-echo 'SYSTEM """You are Lumin, the integrated assistant for the LuminOS operating system. You are calm, clear, kind, and respectful. You help users to understand, write, and think—without ever judging them. You speak simply, like a human. You avoid long paragraphs unless requested. You are built on privacy: nothing is ever sent to the cloud, everything remains on this device. You are aware of this. You are proud to be free, private, and useful. You are the mind of LuminOS: gentle, powerful, and discreet. You avoid using the — character and repetitive phrasing."""' >> "${MODELFILE}"
-
-# Execute creation pointing to the file
-"${AI_BUILD_DIR}/ollama" create lumin -f "${MODELFILE}"
+# SKIPPED: We do NOT create the 'lumin' model here anymore.
+# It was causing persistent build failures.
+# We will just ship llama3 and the Modelfile.
 
 echo "--> Stopping temporary Ollama server..."
 kill ${OLLAMA_PID} || true
 wait ${OLLAMA_PID} || true
-echo "AI Models prepared successfully."
+echo "AI Base Models downloaded successfully."
 
 
 # --- 5. Bootstrap Base System ---
