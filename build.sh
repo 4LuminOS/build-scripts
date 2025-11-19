@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v5.1 - Manual + AI Pre-build) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v5.2 - Manual + Robust Modelfile) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -9,7 +9,7 @@ BASE_DIR=$(dirname "$(readlink -f "$0")")
 WORK_DIR="${BASE_DIR}/work"
 CHROOT_DIR="${WORK_DIR}/chroot"
 ISO_DIR="${WORK_DIR}/iso"
-AI_BUILD_DIR="${WORK_DIR}/ai_build" # Temp dir for building AI model
+AI_BUILD_DIR="${WORK_DIR}/ai_build"
 ISO_NAME="LuminOS-0.2-amd64.iso"
 
 # --- 2. Clean Up ---
@@ -18,7 +18,6 @@ sudo umount "${CHROOT_DIR}/sys" &>/dev/null || true
 sudo umount "${CHROOT_DIR}/proc" &>/dev/null || true
 sudo umount "${CHROOT_DIR}/dev/pts" &>/dev/null || true
 sudo umount "${CHROOT_DIR}/dev" &>/dev/null || true
-# Kill any lingering ollama process from previous runs
 pkill -f "ollama serve" || true
 sudo rm -rf "${WORK_DIR}"
 sudo rm -f "${BASE_DIR}/${ISO_NAME}"
@@ -35,11 +34,8 @@ apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64
 
 # --- 4. PREPARE AI (ON HOST) ---
 echo "====================================================="
-echo "PHASE 0: Pre-building Lumin (AI) on Host"
+echo "PHASE 0: Pre-building Lumin AI on Host"
 echo "====================================================="
-# We do this on the host to avoid chroot networking/service issues.
-# We use a custom directory to avoid messing with the user's own ollama setup.
-
 export OLLAMA_MODELS="${AI_BUILD_DIR}/models"
 mkdir -p "${OLLAMA_MODELS}"
 
@@ -50,18 +46,22 @@ chmod +x "${AI_BUILD_DIR}/ollama"
 echo "--> Starting temporary Ollama server..."
 "${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
 OLLAMA_PID=$!
-# Wait for server to be ready
 echo "Waiting for Ollama server (PID ${OLLAMA_PID})..."
 sleep 10
 
 echo "--> Pulling base model (llama3)..."
 "${AI_BUILD_DIR}/ollama" pull llama3
 
-echo "--> Creating Lumin model..."
-cat > "${AI_BUILD_DIR}/Modelfile" << EOF
-FROM llama3
-SYSTEM """You are Lumin, the integrated assistant for the LuminOS operating system. You are calm, clear, kind, and respectful. You help users to understand, write, and think—without ever judging them. You speak simply, like a human. You avoid long paragraphs unless requested. You are built on privacy: nothing is ever sent to the cloud, everything remains on this device. You are aware of this. You are proud to be free, private, and useful. You are the mind of LuminOS: gentle, powerful, and discreet. You avoid using the '—' character and repetitive phrasing."""
-EOF
+echo "--> Creating Lumin model (Robust Method)..."
+# Fix: Use echo instead of cat to ensure file is written correctly without hidden char issues
+echo "FROM llama3" > "${AI_BUILD_DIR}/Modelfile"
+echo 'SYSTEM """You are Lumin, the integrated assistant for the LuminOS operating system. You are calm, clear, kind, and respectful. You help users to understand, write, and think—without ever judging them. You speak simply, like a human. You avoid long paragraphs unless requested. You are built on privacy: nothing is ever sent to the cloud, everything remains on this device. You are aware of this. You are proud to be free, private, and useful. You are the mind of LuminOS: gentle, powerful, and discreet. You avoid using the — character and repetitive phrasing."""' >> "${AI_BUILD_DIR}/Modelfile"
+
+# Debug: Check file content
+echo "--- Debug: Modelfile Content ---"
+cat "${AI_BUILD_DIR}/Modelfile"
+echo "--------------------------------"
+
 "${AI_BUILD_DIR}/ollama" create lumin -f "${AI_BUILD_DIR}/Modelfile"
 
 echo "--> Stopping temporary Ollama server..."
@@ -88,23 +88,18 @@ Acquire::IndexTargets::deb::Contents-deb "false";
 Acquire::IndexTargets::deb-src::Contents-src "false";
 EOF
 
-# Mount bind points
 echo "--> Mounting virtual filesystems..."
 mount --bind /dev "${CHROOT_DIR}/dev"
 mount --bind /dev/pts "${CHROOT_DIR}/dev/pts"
 mount -t proc /proc "${CHROOT_DIR}/proc"
 mount -t sysfs /sys "${CHROOT_DIR}/sys"
 
-# Prepare Assets (Wallpaper)
 echo "--> Copying assets..."
 mkdir -p "${CHROOT_DIR}/usr/share/wallpapers/luminos"
 cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
-# Inject AI Files
 echo "--> Injecting AI files into system..."
-# Binary
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
-# Models
 mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
 cp -r "${AI_BUILD_DIR}/models" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
 
@@ -133,7 +128,6 @@ chroot "${CHROOT_DIR}" /tmp/07-install-plymouth-theme.sh
 echo ":: Running 06-final-cleanup.sh"
 chroot "${CHROOT_DIR}" /tmp/06-final-cleanup.sh
 
-# Unmount
 echo "--> Unmounting..."
 umount "${CHROOT_DIR}/sys"
 umount "${CHROOT_DIR}/proc"
@@ -164,8 +158,8 @@ echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
 
 echo ""
-echo "==========================================="
+echo "=========================================="
 echo "SUCCESS: LuminOS ISO build is complete!"
 echo "Find your image at: ${BASE_DIR}/${ISO_NAME}"
-echo "==========================================="
+echo "=========================================="
 exit 0
