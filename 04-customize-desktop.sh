@@ -1,42 +1,79 @@
 #!/bin/bash
 set -e
 export DEBIAN_FRONTEND=noninteractive
+
 echo "--> Removing unwanted packages..."
 PACKAGES_TO_REMOVE="kmahjongg kmines kpat ksnake kmail kontact akregator"
 for pkg in $PACKAGES_TO_REMOVE; do
     apt-get purge -y "$pkg" || true
 done
 apt-get autoremove -y
-echo "--> Applying system-wide dark theme (Breeze Dark)..."
-mkdir -p /etc/skel/.config
-cat > /etc/skel/.config/kdeglobals << "KDEGLOBALS"
+
+echo "--> Setting up global assets..."
+# Ensure the wallpaper directory exists
+mkdir -p /usr/share/wallpapers/luminos/
+# (Note: The actual image files are copied by build.sh later, 
+# but we ensure the folder structure is ready here if needed)
+
+# --- CONFIGURATION GENERATION ---
+# We create a temporary folder to hold our configs first
+CONFIG_TMP="/tmp/luminos-configs"
+mkdir -p "$CONFIG_TMP/.config"
+
+# 1. Dark Theme Config
+cat > "$CONFIG_TMP/.config/kdeglobals" << "EOF"
 [General]
 ColorScheme=BreezeDark
 Name=BreezeDark
 [Icons]
 Theme=breeze-dark
-KDEGLOBALS
-echo "--> Setting default desktop wallpaper..."
-cat > /etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc << "WALLPAPER_CONF"
+EOF
+
+# 2. Wallpaper Config
+# We configure it for both standard plasma and the desktop container
+cat > "$CONFIG_TMP/.config/plasma-org.kde.plasma.desktop-appletsrc" << "EOF"
 [Containments][1]
 wallpaperplugin=org.kde.image
+
 [Containments][1][Wallpaper][org.kde.image][General]
 Image=file:///usr/share/wallpapers/luminos/luminos-wallpaper-default.png
-WALLPAPER_CONF
-echo "--> Setting SDDM login screen background..."
+FillMode=2
+EOF
+
+# 3. SDDM (Login Screen) Config
 mkdir -p /etc/sddm.conf.d/
-cat > /etc/sddm.conf.d/luminos-theme.conf << "SDDM_CONF"
+cat > /etc/sddm.conf.d/luminos-theme.conf << "EOF"
 [Theme]
 Current=breeze
+[General]
+# Ensure we point to the right background for the login screen
 Background=/usr/share/wallpapers/luminos/luminos-sddm-background.png
-SDDM_CONF
-echo "--> Branding the system as LuminOS..."
-cat > /etc/os-release << "OSRELEASE"
-PRETTY_NAME="LuminOS"
-NAME="LuminOS"
-VERSION_ID="0.2"
-VERSION="0.2 (Rebirth)"
-ID=luminos
-HOME_URL="https://github.com/4LuminOS/build-scripts"
-OSRELEASE
-echo "LuminOS 0.2 \n \l" > /etc/issue
+EOF
+
+
+# --- APPLYING TO USERS ---
+
+# 1. Apply to Skeleton (for any future new users)
+cp -r "$CONFIG_TMP/.config" /etc/skel/
+
+# 2. Force Apply to 'liveuser' (The Fix!)
+# We verify if the user exists, then inject the configs
+if id "liveuser" &>/dev/null; then
+    echo "--> Injecting configurations into liveuser home..."
+    HOMEDIR="/home/liveuser"
+    mkdir -p "$HOMEDIR/.config"
+    
+    # Copy config files
+    cp "$CONFIG_TMP/.config/kdeglobals" "$HOMEDIR/.config/"
+    cp "$CONFIG_TMP/.config/plasma-org.kde.plasma.desktop-appletsrc" "$HOMEDIR/.config/"
+    
+    # CRITICAL: Fix permissions so liveuser owns their own files
+    chown -R liveuser:liveuser "$HOMEDIR"
+else
+    echo "WARNING: liveuser not found, configs only applied to skel."
+fi
+
+# Cleanup
+rm -rf "$CONFIG_TMP"
+
+echo "SUCCESS: Desktop environment customized and applied to liveuser."
