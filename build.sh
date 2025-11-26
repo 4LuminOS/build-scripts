@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v5.5 - Defer AI Create) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v5.6 - Full AI Integration) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -36,6 +36,7 @@ apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64
 echo "====================================================="
 echo "PHASE 0: Pre-downloading AI Models"
 echo "====================================================="
+# Force Ollama to use our specific directory
 export OLLAMA_MODELS="${AI_BUILD_DIR}/models"
 mkdir -p "${OLLAMA_MODELS}"
 
@@ -44,22 +45,30 @@ curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linu
 chmod +x "${AI_BUILD_DIR}/ollama"
 
 echo "--> Starting temporary Ollama server..."
-"${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
+# Start server in background using our custom models dir
+OLLAMA_MODELS="${OLLAMA_MODELS}" "${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
 OLLAMA_PID=$!
 echo "Waiting for Ollama server (PID ${OLLAMA_PID})..."
 sleep 10
 
 echo "--> Pulling base model (llama3)..."
-"${AI_BUILD_DIR}/ollama" pull llama3
-
-# SKIPPED: We do NOT create the 'lumin' model here anymore.
-# It was causing persistent build failures.
-# We will just ship llama3 and the Modelfile.
+# We use the binary we just downloaded
+OLLAMA_MODELS="${OLLAMA_MODELS}" "${AI_BUILD_DIR}/ollama" pull llama3
 
 echo "--> Stopping temporary Ollama server..."
 kill ${OLLAMA_PID} || true
 wait ${OLLAMA_PID} || true
-echo "AI Base Models downloaded successfully."
+
+# VERIFICATION STEP
+SIZE_CHECK=$(du -s "${OLLAMA_MODELS}" | cut -f1)
+# 4000000 KB is roughly 4GB. If it's smaller, something failed.
+if [ "$SIZE_CHECK" -lt 4000000 ]; then
+    echo "ERROR: Model download failed or is too small ($SIZE_CHECK KB)."
+    echo "Check ${AI_BUILD_DIR}/server.log for details."
+    exit 1
+else
+    echo "SUCCESS: AI Models downloaded (${SIZE_CHECK} KB)."
+fi
 
 
 # --- 5. Bootstrap Base System ---
@@ -92,8 +101,11 @@ cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
 echo "--> Injecting AI files into system..."
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
+# Create the directory structure exactly as Ollama expects
 mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
+# Copy the models we just verified
 cp -r "${AI_BUILD_DIR}/models" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
+echo "--> AI Injection Complete."
 
 
 # --- 7. Run Customization Scripts ---
@@ -128,7 +140,8 @@ umount "${CHROOT_DIR}/dev"
 
 # --- 8. Build the ISO ---
 echo "--> Compressing filesystem (SquashFS)..."
-mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/filesystem.squashfs" -e boot
+# Added -comp zstd for faster decompression and boot
+mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/filesystem.squashfs" -e boot -comp zstd
 
 echo "--> Preparing Bootloader (GRUB)..."
 cp "${CHROOT_DIR}/boot"/vmlinuz* "${ISO_DIR}/live/vmlinuz"
@@ -151,7 +164,15 @@ sudo rm -rf "${WORK_DIR}"
 
 echo ""
 echo "========================================="
-echo "SUCCESS: LuminOS ISO build is complete!"
-echo "Find your image at: ${BASE_DIR}/${ISO_NAME}"
+if [ -f "${BASE_DIR}/${ISO_NAME}" ]; then
+    echo "SUCCESS: LuminOS ISO build is complete!"
+    echo "Find your image at: ${BASE_DIR}/${ISO_NAME}"
+    # Basic size check just to make sure...
+    ISO_SIZE=$(du -h "${BASE_DIR}/${ISO_NAME}" | cut -f1)
+    echo "ISO Size: $ISO_SIZE (Should be > 5G)"
+else
+    echo "ERROR: Build finished but ISO file not found. Sorry."
+    exit 1
+fi
 echo "========================================="
 exit 0
