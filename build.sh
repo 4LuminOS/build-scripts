@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v5.9 - Fixed AI Paths) ====="
+echo "====== LUMINOS MASTER BUILD SCRIPT (v6.1 - Smart Search) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -10,8 +10,6 @@ WORK_DIR="${BASE_DIR}/work"
 CHROOT_DIR="${WORK_DIR}/chroot"
 ISO_DIR="${WORK_DIR}/iso"
 AI_BUILD_DIR="${WORK_DIR}/ai_build"
-# Define a consistent local path for models during build
-LOCAL_MODEL_DIR="${AI_BUILD_DIR}/models"
 ISO_NAME="LuminOS-0.2.1-amd64.iso"
 
 # --- 2. Clean Up ---
@@ -28,7 +26,6 @@ mkdir -p "${CHROOT_DIR}"
 mkdir -p "${ISO_DIR}/live"
 mkdir -p "${ISO_DIR}/boot/grub"
 mkdir -p "${AI_BUILD_DIR}"
-mkdir -p "${LOCAL_MODEL_DIR}"
 
 # --- 3. Install Dependencies ---
 echo "--> Installing build dependencies..."
@@ -37,44 +34,82 @@ apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64
 
 # --- 4. PREPARE AI (ON HOST) ---
 echo "====================================================="
-echo "PHASE 0: Pre-downloading AI Models"
+echo "PHASE 0: Preparing AI Models"
 echo "====================================================="
+TARGET_MODEL_DIR="${AI_BUILD_DIR}/models"
+mkdir -p "${TARGET_MODEL_DIR}"
 
-# Export the variable so both 'serve' and 'pull' see it
-export OLLAMA_MODELS="${LOCAL_MODEL_DIR}"
+# Detect User Home
+REAL_USER="${SUDO_USER:-$USER}"
+USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
-echo "--> Downloading Ollama binary..."
-curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
-chmod +x "${AI_BUILD_DIR}/ollama"
+# Define potential locations for existing models
+POSSIBLE_LOCATIONS=(
+    "${USER_HOME}/.ollama/models"
+    "/usr/share/ollama/.ollama/models"
+    "/var/lib/ollama/.ollama/models"
+    "/root/.ollama/models"
+)
 
-echo "--> Starting temporary Ollama server..."
-"${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
-OLLAMA_PID=$!
-echo "Waiting for Ollama server (PID ${OLLAMA_PID})..."
-sleep 10
+MODEL_FOUND=false
 
-echo "--> Pulling base model (llama3)..."
-"${AI_BUILD_DIR}/ollama" pull llama3
-
-echo "--> Stopping temporary Ollama server..."
-kill ${OLLAMA_PID} || true
-wait ${OLLAMA_PID} || true
-
-# VERIFICATION
-echo "--> Checking model size at ${LOCAL_MODEL_DIR}..."
-if [ -d "${LOCAL_MODEL_DIR}" ]; then
-    SIZE_CHECK=$(du -s "${LOCAL_MODEL_DIR}" | cut -f1)
-    # Expecting > 4GB (4000000 KB)
-    if [ "$SIZE_CHECK" -lt 4000000 ]; then
-        echo "ERROR: Model directory found but seems too small ($SIZE_CHECK KB)."
-        echo "Check connection or server log."
-        exit 1
-    else
-        echo "SUCCESS: AI Models found (${SIZE_CHECK} KB)."
+# Strategy A: Search existing locations
+for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
+    if [ -d "$LOC" ]; then
+        SIZE_CHECK=$(du -s "$LOC" | cut -f1)
+        if [ "$SIZE_CHECK" -gt 1000000 ]; then # Check if > 1GB
+            echo "SUCCESS: Found models at $LOC! Copying..."
+            cp -r "${LOC}/." "${TARGET_MODEL_DIR}/"
+            MODEL_FOUND=true
+            break
+        fi
     fi
-else
-    echo "ERROR: Could not find downloaded models at ${LOCAL_MODEL_DIR}"
+done
+
+# Strategy B: Download if not found (Fallback)
+if [ "$MODEL_FOUND" = false ]; then
+    echo "--> Model not found locally. Attempting download..."
+    
+    echo "--> Downloading Ollama binary..."
+    curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
+    chmod +x "${AI_BUILD_DIR}/ollama"
+
+    # Set HOME to AI_BUILD_DIR so ollama writes there cleanly
+    export HOME="${AI_BUILD_DIR}"
+    
+    echo "--> Starting temporary Ollama server..."
+    "${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
+    OLLAMA_PID=$!
+    echo "Waiting 10s for server..."
+    sleep 10
+
+    if ! kill -0 $OLLAMA_PID 2>/dev/null; then
+        echo "ERROR: Ollama server crashed immediately."
+        echo "--- Server Log ---"
+        cat "${AI_BUILD_DIR}/server.log"
+        echo "------------------"
+        exit 1
+    fi
+
+    echo "--> Pulling base model (llama3)..."
+    "${AI_BUILD_DIR}/ollama" pull llama3
+
+    echo "--> Stopping server..."
+    kill ${OLLAMA_PID} || true
+    
+    # Move from the temp HOME structure to our target
+    if [ -d "${AI_BUILD_DIR}/.ollama/models" ]; then
+        cp -r "${AI_BUILD_DIR}/.ollama/models/." "${TARGET_MODEL_DIR}/"
+    fi
+fi
+
+# Final Verification
+SIZE_CHECK=$(du -s "${TARGET_MODEL_DIR}" | cut -f1)
+if [ "$SIZE_CHECK" -lt 1000000 ]; then
+    echo "ERROR: Model preparation failed. Target directory is too small ($SIZE_CHECK KB)."
     exit 1
+else
+    echo "SUCCESS: AI Models prepared (${SIZE_CHECK} KB)."
 fi
 
 
@@ -107,12 +142,16 @@ mkdir -p "${CHROOT_DIR}/usr/share/wallpapers/luminos"
 cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
 echo "--> Injecting AI files into system..."
+# Copy binary (download if not already there from fallback)
+if [ ! -f "${AI_BUILD_DIR}/ollama" ]; then
+    curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
+    chmod +x "${AI_BUILD_DIR}/ollama"
+fi
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
-# Create the directory structure exactly as Ollama expects
+
+# Copy models
 mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
-# Copy the models from our LOCAL build dir to the ISO's ollama user location
-echo "--> Copying models to Chroot..."
-cp -r "${LOCAL_MODEL_DIR}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
+cp -r "${TARGET_MODEL_DIR}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
 echo "--> AI Injection Complete."
 
 
