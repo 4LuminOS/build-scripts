@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "===== LUMINOS MASTER BUILD SCRIPT (v5.8 - Robust AI Path) ====="
+echo "===== LUMINOS MASTER BUILD SCRIPT (v5.9 - Fixed AI Paths) ====="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -10,6 +10,8 @@ WORK_DIR="${BASE_DIR}/work"
 CHROOT_DIR="${WORK_DIR}/chroot"
 ISO_DIR="${WORK_DIR}/iso"
 AI_BUILD_DIR="${WORK_DIR}/ai_build"
+# Define a consistent local path for models during build
+LOCAL_MODEL_DIR="${AI_BUILD_DIR}/models"
 ISO_NAME="LuminOS-0.2.1-amd64.iso"
 
 # --- 2. Clean Up ---
@@ -26,6 +28,7 @@ mkdir -p "${CHROOT_DIR}"
 mkdir -p "${ISO_DIR}/live"
 mkdir -p "${ISO_DIR}/boot/grub"
 mkdir -p "${AI_BUILD_DIR}"
+mkdir -p "${LOCAL_MODEL_DIR}"
 
 # --- 3. Install Dependencies ---
 echo "--> Installing build dependencies..."
@@ -37,12 +40,14 @@ echo "====================================================="
 echo "PHASE 0: Pre-downloading AI Models"
 echo "====================================================="
 
+# Export the variable so both 'serve' and 'pull' see it
+export OLLAMA_MODELS="${LOCAL_MODEL_DIR}"
+
 echo "--> Downloading Ollama binary..."
 curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
 chmod +x "${AI_BUILD_DIR}/ollama"
 
 echo "--> Starting temporary Ollama server..."
-# We allow it to use the default root location (~/.ollama) to avoid permission/path issues
 "${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
 OLLAMA_PID=$!
 echo "Waiting for Ollama server (PID ${OLLAMA_PID})..."
@@ -55,20 +60,20 @@ echo "--> Stopping temporary Ollama server..."
 kill ${OLLAMA_PID} || true
 wait ${OLLAMA_PID} || true
 
-# LOCATE MODELS
-# Since we run as sudo, models are likely in /root/.ollama
-SOURCE_MODELS="/root/.ollama/models"
-
-echo "--> Checking model size at ${SOURCE_MODELS}..."
-if [ -d "${SOURCE_MODELS}" ]; then
-    SIZE_CHECK=$(du -s "${SOURCE_MODELS}" | cut -f1)
+# VERIFICATION
+echo "--> Checking model size at ${LOCAL_MODEL_DIR}..."
+if [ -d "${LOCAL_MODEL_DIR}" ]; then
+    SIZE_CHECK=$(du -s "${LOCAL_MODEL_DIR}" | cut -f1)
+    # Expecting > 4GB (4000000 KB)
     if [ "$SIZE_CHECK" -lt 4000000 ]; then
-        echo "WARNING: Model directory found but seems small ($SIZE_CHECK KB)."
+        echo "ERROR: Model directory found but seems too small ($SIZE_CHECK KB)."
+        echo "Check connection or server log."
+        exit 1
     else
         echo "SUCCESS: AI Models found (${SIZE_CHECK} KB)."
     fi
 else
-    echo "ERROR: Could not find downloaded models at ${SOURCE_MODELS}"
+    echo "ERROR: Could not find downloaded models at ${LOCAL_MODEL_DIR}"
     exit 1
 fi
 
@@ -105,9 +110,9 @@ echo "--> Injecting AI files into system..."
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
 # Create the directory structure exactly as Ollama expects
 mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
-# Copy the models from ROOT's home to the ISO's ollama user location
-echo "--> Copying models from Host Root to Chroot..."
-cp -r "${SOURCE_MODELS}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
+# Copy the models from our LOCAL build dir to the ISO's ollama user location
+echo "--> Copying models to Chroot..."
+cp -r "${LOCAL_MODEL_DIR}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
 echo "--> AI Injection Complete."
 
 
