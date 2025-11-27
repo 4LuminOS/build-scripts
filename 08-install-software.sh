@@ -4,6 +4,10 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "--> Installing Essential Software..."
 
+# 0. Prerequisite: Install curl (needed for downloading OnlyOffice)
+echo "--> Installing download tools..."
+apt-get install -y curl
+
 # 1. Multimedia & Codecs (The "Play Everything" Pack)
 # ffmpeg, gstreamer plugins for wide format support, and VLC
 echo "--> Installing Codecs and VLC..."
