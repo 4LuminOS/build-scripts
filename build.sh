@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v6.2 - Model Cleaner) ======"
-if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
+echo "====== LUMINOS MASTER BUILD SCRIPT (v6.1 - Smart Path Search) ======"
+if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root"; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
 BASE_DIR=$(dirname "$(readlink -f "$0")")
@@ -11,7 +11,6 @@ CHROOT_DIR="${WORK_DIR}/chroot"
 ISO_DIR="${WORK_DIR}/iso"
 AI_BUILD_DIR="${WORK_DIR}/ai_build"
 ISO_NAME="LuminOS-0.2.1-amd64.iso"
-REQUIRED_MODEL="llama3"
 
 # --- 2. Clean Up ---
 echo "--> Cleaning up previous build artifacts..."
@@ -33,32 +32,35 @@ echo "--> Installing build dependencies..."
 apt-get update
 apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools curl rsync
 
-# --- 4. PREPARE AI (Smart & Clean) ---
+# --- 4. PREPARE AI (ON HOST) ---
 echo "====================================================="
 echo "PHASE 0: Preparing AI Models"
 echo "====================================================="
 TARGET_MODEL_DIR="${AI_BUILD_DIR}/models"
 mkdir -p "${TARGET_MODEL_DIR}"
 
-# Detect User Home
+# Detect the real user behind sudo to find their home
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
+# List of all possible places the model might be
 POSSIBLE_LOCATIONS=(
     "${USER_HOME}/.ollama/models"
+    "/root/.ollama/models"
     "/usr/share/ollama/.ollama/models"
     "/var/lib/ollama/.ollama/models"
-    "/root/.ollama/models"
 )
 
 MODEL_FOUND=false
 
-# Strategy A: Copy existing models (Draft)
+# Strategy A: SEARCH existing models
+echo "--> Searching for existing models..."
 for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     if [ -d "$LOC" ]; then
+        echo "    Checking $LOC..."
         SIZE_CHECK=$(du -s "$LOC" | cut -f1)
-        if [ "$SIZE_CHECK" -gt 1000000 ]; then
-            echo "INFO: Found models at $LOC. Copying to temp dir..."
+        if [ "$SIZE_CHECK" -gt 1000000 ]; then # Check if > 1GB
+            echo "SUCCESS: Found valid models at $LOC! Copying..."
             cp -r "${LOC}/." "${TARGET_MODEL_DIR}/"
             MODEL_FOUND=true
             break
@@ -66,52 +68,34 @@ for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     fi
 done
 
-echo "--> Downloading Ollama binary..."
-curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
-chmod +x "${AI_BUILD_DIR}/ollama"
-
-# Start Temp Server (Used for both downloading AND cleaning)
-export OLLAMA_MODELS="${TARGET_MODEL_DIR}"
-export HOME="${AI_BUILD_DIR}" # Redirect home to keep things clean
-
-echo "--> Starting temporary Ollama server to manage models..."
-"${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
-OLLAMA_PID=$!
-echo "Waiting 10s for server..."
-sleep 10
-
-# Strategy B: Download if missing
+# Strategy B: DOWNLOAD if not found
 if [ "$MODEL_FOUND" = false ]; then
-    echo "--> Model not found locally. Downloading ${REQUIRED_MODEL}..."
-    "${AI_BUILD_DIR}/ollama" pull ${REQUIRED_MODEL}
-else
-    # Check if the specific required model is actually there
-    if ! "${AI_BUILD_DIR}/ollama" list | grep -q "${REQUIRED_MODEL}"; then
-        echo "--> Local cache found, but ${REQUIRED_MODEL} is missing. Downloading..."
-        "${AI_BUILD_DIR}/ollama" pull ${REQUIRED_MODEL}
+    echo "--> Model not found locally. Downloading..."
+    
+    echo "--> Downloading Ollama binary..."
+    curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
+    chmod +x "${AI_BUILD_DIR}/ollama"
+
+    # Force HOME to our temp dir to control where models go
+    export HOME="${AI_BUILD_DIR}"
+    
+    echo "--> Starting temporary Ollama server..."
+    "${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
+    OLLAMA_PID=$!
+    echo "Waiting 10s for server..."
+    sleep 10
+
+    echo "--> Pulling base model (llama3)..."
+    "${AI_BUILD_DIR}/ollama" pull llama3
+
+    echo "--> Stopping server..."
+    kill ${OLLAMA_PID} || true
+    
+    # Move from the temp HOME structure to our target
+    if [ -d "${AI_BUILD_DIR}/.ollama/models" ]; then
+        cp -r "${AI_BUILD_DIR}/.ollama/models/." "${TARGET_MODEL_DIR}/"
     fi
 fi
-
-# --- CLEANUP STEP (New in v6.2) ---
-echo "--> Cleaning up extraneous models to save ISO space..."
-# List all models, filter out the required one, and remove the rest
-EXISTING_MODELS=$("${AI_BUILD_DIR}/ollama" list | awk 'NR>1 {print $1}')
-
-for model in $EXISTING_MODELS; do
-    # Check if model matches required (allowing for :latest tag)
-    if [[ "$model" != "${REQUIRED_MODEL}" && "$model" != "${REQUIRED_MODEL}:latest" ]]; then
-        echo "--> Removing unused model from ISO build: $model"
-        "${AI_BUILD_DIR}/ollama" rm "$model"
-    else
-        echo "--> Keeping core model: $model"
-    fi
-done
-# ----------------------------------
-
-echo "--> Stopping temporary Ollama server..."
-kill ${OLLAMA_PID} || true
-wait ${OLLAMA_PID} || true
-
 
 # Final Verification
 SIZE_CHECK=$(du -s "${TARGET_MODEL_DIR}" | cut -f1)
@@ -119,7 +103,7 @@ if [ "$SIZE_CHECK" -lt 1000000 ]; then
     echo "ERROR: Model preparation failed. Target directory is too small ($SIZE_CHECK KB)."
     exit 1
 else
-    echo "SUCCESS: AI Models prepared and cleaned (${SIZE_CHECK} KB)."
+    echo "SUCCESS: AI Models prepared (${SIZE_CHECK} KB)."
 fi
 
 
@@ -152,10 +136,15 @@ mkdir -p "${CHROOT_DIR}/usr/share/wallpapers/luminos"
 cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
 echo "--> Injecting AI files into system..."
+# Ensure binary exists
+if [ ! -f "${AI_BUILD_DIR}/ollama" ]; then
+    curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
+    chmod +x "${AI_BUILD_DIR}/ollama"
+fi
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
-# Create the directory structure exactly as Ollama expects
+
+# Copy models
 mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
-# Copy the cleaned models
 cp -r "${TARGET_MODEL_DIR}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
 echo "--> AI Injection Complete."
 
