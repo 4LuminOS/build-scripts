@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v6.3 - Large File Support) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v6.4 - Native Xorriso Fix) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -75,7 +75,7 @@ if [ "$MODEL_FOUND" = false ]; then
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
     chmod +x "${AI_BUILD_DIR}/ollama"
 
-    # Force HOME to our temp dir to control where models go
+    # Force HOME to our temp dir
     export HOME="${AI_BUILD_DIR}"
     
     echo "--> Starting temporary Ollama server..."
@@ -90,13 +90,12 @@ if [ "$MODEL_FOUND" = false ]; then
     echo "--> Stopping server..."
     kill ${OLLAMA_PID} || true
     
-    # Move from the temp HOME structure to our target
     if [ -d "${AI_BUILD_DIR}/.ollama/models" ]; then
         cp -r "${AI_BUILD_DIR}/.ollama/models/." "${TARGET_MODEL_DIR}/"
     fi
 fi
 
-# Final Verification
+# Verification
 SIZE_CHECK=$(du -s "${TARGET_MODEL_DIR}" | cut -f1)
 if [ "$SIZE_CHECK" -lt 1000000 ]; then
     echo "ERROR: Model preparation failed. Target directory is too small ($SIZE_CHECK KB)."
@@ -135,14 +134,11 @@ mkdir -p "${CHROOT_DIR}/usr/share/wallpapers/luminos"
 cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
 echo "--> Injecting AI files into system..."
-# Ensure binary exists
 if [ ! -f "${AI_BUILD_DIR}/ollama" ]; then
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
     chmod +x "${AI_BUILD_DIR}/ollama"
 fi
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
-
-# Copy models
 mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
 cp -r "${TARGET_MODEL_DIR}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
 echo "--> AI Injection Complete."
@@ -198,9 +194,9 @@ menuentry "LuminOS v0.2.1 Live" {
 }
 EOF
 
-echo "--> Generating ISO image (Level 3 for Large Files)..."
-# Added -- -iso-level 3 to allow files > 4GB
-grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -iso-level 3
+echo "--> Generating ISO image (Native Xorriso Mode)..."
+# Correct syntax for native xorriso command to allow large files
+grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -compliance iso_9660_level=3
 
 echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
