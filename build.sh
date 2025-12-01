@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v6.1 - Smart Path Search) ======"
-if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root"; exit 1; fi
+echo "====== LUMINOS MASTER BUILD SCRIPT (v6.3 - Large File Support) ======"
+if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
 BASE_DIR=$(dirname "$(readlink -f "$0")")
@@ -39,16 +39,15 @@ echo "====================================================="
 TARGET_MODEL_DIR="${AI_BUILD_DIR}/models"
 mkdir -p "${TARGET_MODEL_DIR}"
 
-# Detect the real user behind sudo to find their home
+# Detect User Home
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
-# List of all possible places the model might be
 POSSIBLE_LOCATIONS=(
     "${USER_HOME}/.ollama/models"
-    "/root/.ollama/models"
     "/usr/share/ollama/.ollama/models"
     "/var/lib/ollama/.ollama/models"
+    "/root/.ollama/models"
 )
 
 MODEL_FOUND=false
@@ -199,8 +198,9 @@ menuentry "LuminOS v0.2.1 Live" {
 }
 EOF
 
-echo "--> Generating ISO image..."
-grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}"
+echo "--> Generating ISO image (Level 3 for Large Files)..."
+# Added -- -iso-level 3 to allow files > 4GB
+grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -iso-level 3
 
 echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
@@ -213,7 +213,7 @@ if [ -f "${BASE_DIR}/${ISO_NAME}" ]; then
     ISO_SIZE=$(du -h "${BASE_DIR}/${ISO_NAME}" | cut -f1)
     echo "ISO Size: $ISO_SIZE"
 else
-    echo "ERROR: Build finished but ISO file not found."
+    echo "ERROR: Build finished but ISO file... not found?!"
     exit 1
 fi
 echo "========================================="
