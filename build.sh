@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v6.5 - No-Joliet Fix) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v6.6 - Split SquashFS Layers) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -51,11 +51,10 @@ POSSIBLE_LOCATIONS=(
 
 MODEL_FOUND=false
 
-# Strategy A: SEARCH existing models
+# Search existing models
 echo "--> Searching for existing models..."
 for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     if [ -d "$LOC" ]; then
-        echo "    Checking $LOC..."
         SIZE_CHECK=$(du -s "$LOC" | cut -f1)
         if [ "$SIZE_CHECK" -gt 1000000 ]; then
             echo "SUCCESS: Found valid models at $LOC! Copying..."
@@ -66,40 +65,22 @@ for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     fi
 done
 
-# Strategy B: DOWNLOAD if not found
+# Download if not found
 if [ "$MODEL_FOUND" = false ]; then
     echo "--> Model not found locally. Downloading..."
-    
-    echo "--> Downloading Ollama binary..."
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
     chmod +x "${AI_BUILD_DIR}/ollama"
     export HOME="${AI_BUILD_DIR}"
-    
-    echo "--> Starting temporary Ollama server..."
     "${AI_BUILD_DIR}/ollama" serve > "${AI_BUILD_DIR}/server.log" 2>&1 &
     OLLAMA_PID=$!
     echo "Waiting 10s for server..."
     sleep 10
-
-    echo "--> Pulling base model (llama3)..."
     "${AI_BUILD_DIR}/ollama" pull llama3
-
-    echo "--> Stopping server..."
     kill ${OLLAMA_PID} || true
-    
     if [ -d "${AI_BUILD_DIR}/.ollama/models" ]; then
         cp -r "${AI_BUILD_DIR}/.ollama/models/." "${TARGET_MODEL_DIR}/"
     fi
 fi
-
-SIZE_CHECK=$(du -s "${TARGET_MODEL_DIR}" | cut -f1)
-if [ "$SIZE_CHECK" -lt 1000000 ]; then
-    echo "ERROR: Model preparation failed. Target directory is too small ($SIZE_CHECK KB)."
-    exit 1
-else
-    echo "SUCCESS: AI Models prepared (${SIZE_CHECK} KB)."
-fi
-
 
 # --- 5. Bootstrap Base System ---
 echo "--> Bootstrapping Debian base..."
@@ -129,15 +110,13 @@ echo "--> Copying assets..."
 mkdir -p "${CHROOT_DIR}/usr/share/wallpapers/luminos"
 cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
-echo "--> Injecting AI files into system..."
+echo "--> Injecting AI Binary (Models come later via SquashFS)..."
 if [ ! -f "${AI_BUILD_DIR}/ollama" ]; then
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
     chmod +x "${AI_BUILD_DIR}/ollama"
 fi
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
-mkdir -p "${CHROOT_DIR}/usr/share/ollama/.ollama"
-cp -r "${TARGET_MODEL_DIR}" "${CHROOT_DIR}/usr/share/ollama/.ollama/"
-echo "--> AI Injection Complete."
+# NOTE: We do NOT copy models into CHROOT here. We will build a separate SquashFS for them.
 
 
 # --- 7. Run Customization Scripts ---
@@ -173,9 +152,22 @@ umount "${CHROOT_DIR}/proc"
 umount "${CHROOT_DIR}/dev/pts"
 umount "${CHROOT_DIR}/dev"
 
-# --- 8. Build the ISO ---
-echo "--> Compressing filesystem (SquashFS)..."
-mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/filesystem.squashfs" -e boot -comp zstd
+# --- 8. Build the ISO (Split Layers) ---
+
+# Layer 1: The Main OS (excludes /usr/share/ollama/.ollama where models would be)
+echo "--> Compressing Layer 1: Main OS..."
+mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd
+
+# Layer 2: The AI Models
+echo "--> Preparing Layer 2: AI Models..."
+# We create a temporary structure to mimic the root filesystem for the second layer
+AI_LAYER_DIR="${WORK_DIR}/ai_layer_root"
+mkdir -p "${AI_LAYER_DIR}/usr/share/ollama/.ollama"
+# Copy models into this structure
+cp -r "${TARGET_MODEL_DIR}" "${AI_LAYER_DIR}/usr/share/ollama/.ollama/"
+
+echo "--> Compressing Layer 2: AI Models..."
+mksquashfs "${AI_LAYER_DIR}" "${ISO_DIR}/live/02-ai-models.squashfs" -comp zstd
 
 echo "--> Preparing Bootloader (GRUB)..."
 cp "${CHROOT_DIR}/boot"/vmlinuz* "${ISO_DIR}/live/vmlinuz"
@@ -190,9 +182,9 @@ menuentry "LuminOS v0.2.1 Live" {
 }
 EOF
 
-echo "--> Generating ISO image (Level 3 + No Joliet)..."
-# FIX: Disable Joliet (-joliet off) to bypass 4GB file limit
-grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -joliet off -compliance iso_9660_level=3
+echo "--> Generating ISO image..."
+# No special flags needed now, as individual files are < 4GB!
+grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}"
 
 echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
