@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v6.6 - Split SquashFS Layers) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v7.1 - Multi-Layer AI) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -42,22 +42,15 @@ mkdir -p "${TARGET_MODEL_DIR}"
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
-POSSIBLE_LOCATIONS=(
-    "${USER_HOME}/.ollama/models"
-    "/usr/share/ollama/.ollama/models"
-    "/var/lib/ollama/.ollama/models"
-    "/root/.ollama/models"
-)
-
-MODEL_FOUND=false
-
 # Search existing models
-echo "--> Searching for existing models..."
+MODEL_FOUND=false
+POSSIBLE_LOCATIONS=("${USER_HOME}/.ollama/models" "/root/.ollama/models" "/usr/share/ollama/.ollama/models")
+
 for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     if [ -d "$LOC" ]; then
         SIZE_CHECK=$(du -s "$LOC" | cut -f1)
         if [ "$SIZE_CHECK" -gt 1000000 ]; then
-            echo "SUCCESS: Found valid models at $LOC! Copying..."
+            echo "SUCCESS: Found models at $LOC! Copying..."
             cp -r "${LOC}/." "${TARGET_MODEL_DIR}/"
             MODEL_FOUND=true
             break
@@ -92,8 +85,7 @@ debootstrap \
     "${CHROOT_DIR}" \
     http://ftp.debian.org/debian/
 
-# --- 6. Apply Fixes & Prepare Environment ---
-echo "--> Applying APT fixes..."
+# --- 6. Apply Fixes & Environment ---
 mkdir -p "${CHROOT_DIR}/etc/apt/apt.conf.d"
 cat > "${CHROOT_DIR}/etc/apt/apt.conf.d/99-no-contents" << EOF
 Acquire::IndexTargets::deb::Contents-deb "false";
@@ -110,14 +102,12 @@ echo "--> Copying assets..."
 mkdir -p "${CHROOT_DIR}/usr/share/wallpapers/luminos"
 cp "${BASE_DIR}/assets/"* "${CHROOT_DIR}/usr/share/wallpapers/luminos/"
 
-echo "--> Injecting AI Binary (Models come later via SquashFS)..."
+echo "--> Injecting AI Binary..."
 if [ ! -f "${AI_BUILD_DIR}/ollama" ]; then
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
     chmod +x "${AI_BUILD_DIR}/ollama"
 fi
 cp "${AI_BUILD_DIR}/ollama" "${CHROOT_DIR}/usr/local/bin/"
-# NOTE: We do NOT copy models into CHROOT here. We will build a separate SquashFS for them.
-
 
 # --- 7. Run Customization Scripts ---
 echo "--> Running customization scripts..."
@@ -131,19 +121,13 @@ cp "${BASE_DIR}/06-final-cleanup.sh" "${CHROOT_DIR}/tmp/"
 
 chmod +x "${CHROOT_DIR}/tmp/"*.sh
 
-echo ":: Running 02-configure-system.sh"
+echo ":: Running scripts..."
 chroot "${CHROOT_DIR}" /tmp/02-configure-system.sh
-echo ":: Running 03-install-desktop.sh"
 chroot "${CHROOT_DIR}" /tmp/03-install-desktop.sh
-echo ":: Running 04-customize-desktop.sh"
 chroot "${CHROOT_DIR}" /tmp/04-customize-desktop.sh
-echo ":: Running 05-install-ai.sh"
 chroot "${CHROOT_DIR}" /tmp/05-install-ai.sh
-echo ":: Running 07-install-plymouth-theme.sh"
 chroot "${CHROOT_DIR}" /tmp/07-install-plymouth-theme.sh
-echo ":: Running 08-install-software.sh"
 chroot "${CHROOT_DIR}" /tmp/08-install-software.sh
-echo ":: Running 06-final-cleanup.sh"
 chroot "${CHROOT_DIR}" /tmp/06-final-cleanup.sh
 
 echo "--> Unmounting..."
@@ -152,22 +136,48 @@ umount "${CHROOT_DIR}/proc"
 umount "${CHROOT_DIR}/dev/pts"
 umount "${CHROOT_DIR}/dev"
 
-# --- 8. Build the ISO (Split Layers) ---
+# --- 8. Build the ISO (Multi-Layer Strategy) ---
 
-# Layer 1: The Main OS (excludes /usr/share/ollama/.ollama where models would be)
+# Layer 1: Main OS (Base + Desktop + Apps)
+# We EXCLUDE the heavy AI models path here
 echo "--> Compressing Layer 1: Main OS..."
 mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd
 
-# Layer 2: The AI Models
-echo "--> Preparing Layer 2: AI Models..."
-# We create a temporary structure to mimic the root filesystem for the second layer
-AI_LAYER_DIR="${WORK_DIR}/ai_layer_root"
-mkdir -p "${AI_LAYER_DIR}/usr/share/ollama/.ollama"
-# Copy models into this structure
-cp -r "${TARGET_MODEL_DIR}" "${AI_LAYER_DIR}/usr/share/ollama/.ollama/"
+# Layer 2 & 3: AI Models (Split into chunks < 4GB)
+echo "--> Preparing AI Layers (Splitting models)..."
 
-echo "--> Compressing Layer 2: AI Models..."
-mksquashfs "${AI_LAYER_DIR}" "${ISO_DIR}/live/02-ai-models.squashfs" -comp zstd
+# Prepare temporary folders for layers
+AI_LAYER_1="${WORK_DIR}/ai_layer_1"
+AI_LAYER_2="${WORK_DIR}/ai_layer_2"
+mkdir -p "${AI_LAYER_1}/usr/share/ollama/.ollama"
+mkdir -p "${AI_LAYER_2}/usr/share/ollama/.ollama"
+
+# Copy all models to Layer 1 first
+cp -r "${TARGET_MODEL_DIR}/." "${AI_LAYER_1}/usr/share/ollama/.ollama/"
+
+# Move the heavy "blobs" folder to Layer 2 to balance size?
+# Better strategy: Move half of the blobs to Layer 2.
+BLOB_DIR_1="${AI_LAYER_1}/usr/share/ollama/.ollama/blobs"
+BLOB_DIR_2="${AI_LAYER_2}/usr/share/ollama/.ollama/blobs"
+mkdir -p "${BLOB_DIR_2}"
+
+echo "--> Distributing AI blobs across layers..."
+# Move roughly half the blobs to the second layer
+count=0
+for file in "${BLOB_DIR_1}"/*; do
+    if [ -f "$file" ]; then
+        if (( count % 2 == 0 )); then
+            mv "$file" "${BLOB_DIR_2}/"
+        fi
+        ((count++))
+    fi
+done
+
+echo "--> Compressing Layer 2: AI Part A..."
+mksquashfs "${AI_LAYER_1}" "${ISO_DIR}/live/02-ai-part-a.squashfs" -comp zstd
+
+echo "--> Compressing Layer 3: AI Part B..."
+mksquashfs "${AI_LAYER_2}" "${ISO_DIR}/live/03-ai-part-b.squashfs" -comp zstd
 
 echo "--> Preparing Bootloader (GRUB)..."
 cp "${CHROOT_DIR}/boot"/vmlinuz* "${ISO_DIR}/live/vmlinuz"
@@ -183,7 +193,7 @@ menuentry "LuminOS v0.2.1 Live" {
 EOF
 
 echo "--> Generating ISO image..."
-# No special flags needed now, as individual files are < 4GB!
+# No special flags needed now, individual squashfs files are small!
 grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}"
 
 echo "--> Cleaning up work directory..."
