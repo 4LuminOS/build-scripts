@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v6.4 - Native Xorriso Fix) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v6.5 - No-Joliet Fix) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -39,7 +39,6 @@ echo "====================================================="
 TARGET_MODEL_DIR="${AI_BUILD_DIR}/models"
 mkdir -p "${TARGET_MODEL_DIR}"
 
-# Detect User Home
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
@@ -58,7 +57,7 @@ for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     if [ -d "$LOC" ]; then
         echo "    Checking $LOC..."
         SIZE_CHECK=$(du -s "$LOC" | cut -f1)
-        if [ "$SIZE_CHECK" -gt 1000000 ]; then # Check if > 1GB
+        if [ "$SIZE_CHECK" -gt 1000000 ]; then
             echo "SUCCESS: Found valid models at $LOC! Copying..."
             cp -r "${LOC}/." "${TARGET_MODEL_DIR}/"
             MODEL_FOUND=true
@@ -74,8 +73,6 @@ if [ "$MODEL_FOUND" = false ]; then
     echo "--> Downloading Ollama binary..."
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
     chmod +x "${AI_BUILD_DIR}/ollama"
-
-    # Force HOME to our temp dir
     export HOME="${AI_BUILD_DIR}"
     
     echo "--> Starting temporary Ollama server..."
@@ -95,7 +92,6 @@ if [ "$MODEL_FOUND" = false ]; then
     fi
 fi
 
-# Verification
 SIZE_CHECK=$(du -s "${TARGET_MODEL_DIR}" | cut -f1)
 if [ "$SIZE_CHECK" -lt 1000000 ]; then
     echo "ERROR: Model preparation failed. Target directory is too small ($SIZE_CHECK KB)."
@@ -194,9 +190,9 @@ menuentry "LuminOS v0.2.1 Live" {
 }
 EOF
 
-echo "--> Generating ISO image (Native Xorriso Mode)..."
-# Correct syntax for native xorriso command to allow large files
-grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -compliance iso_9660_level=3
+echo "--> Generating ISO image (Level 3 + No Joliet)..."
+# FIX: Disable Joliet (-joliet off) to bypass 4GB file limit
+grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -joliet off -compliance iso_9660_level=3
 
 echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
