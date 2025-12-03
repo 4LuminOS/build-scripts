@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v7.2 - Robust Layers) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v7.3 - UDF Support) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -141,53 +141,20 @@ umount "${CHROOT_DIR}/proc"
 umount "${CHROOT_DIR}/dev/pts"
 umount "${CHROOT_DIR}/dev"
 
-# --- 8. Build the ISO (Layered) ---
-# ---------------------------------------------------------
-# STRATEGY: 3 Layers to keep files under 4GB
-# 01-filesystem.squashfs (Base OS ~2GB)
-# 02-ai-part1.squashfs (Models Part A ~2.5GB)
-# 03-ai-part2.squashfs (Models Part B ~2.5GB)
-# ---------------------------------------------------------
+# --- 8. Build the ISO (Layers + UDF) ---
+# We use layers to keep the main OS clean, even if UDF allows large files.
+# This is cleaner for updates later.
 
-# Layer 1: Main OS (excludes AI models path)
+# Layer 1: Main OS (excludes /usr/share/ollama/.ollama)
 echo "--> Compressing Layer 1: Main OS..."
 mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd
 
-# Prepare AI Split
-echo "--> Preparing AI Layers..."
-AI_LAYER_1="${WORK_DIR}/ai_layer_1"
-AI_LAYER_2="${WORK_DIR}/ai_layer_2"
-
-# Create the structure
-mkdir -p "${AI_LAYER_1}/usr/share/ollama/.ollama/blobs"
-mkdir -p "${AI_LAYER_2}/usr/share/ollama/.ollama/blobs"
-
-# Copy the 'manifests' folder to Layer 1 (it's small)
-cp -r "${TARGET_MODEL_DIR}/manifests" "${AI_LAYER_1}/usr/share/ollama/.ollama/"
-
-# Split the 'blobs' (The heavy files)
-echo "--> Splitting AI blobs..."
-# We simply list files and move half to layer 2.
-# This logic is safer than the loop.
-find "${TARGET_MODEL_DIR}/blobs" -type f > "${WORK_DIR}/blob_list.txt"
-TOTAL_BLOBS=$(wc -l < "${WORK_DIR}/blob_list.txt")
-HALF_BLOBS=$((TOTAL_BLOBS / 2))
-
-# Copy first half to Layer 1
-head -n "$HALF_BLOBS" "${WORK_DIR}/blob_list.txt" | while read -r file; do
-    cp "$file" "${AI_LAYER_1}/usr/share/ollama/.ollama/blobs/"
-done
-
-# Copy second half to Layer 2
-tail -n +$((HALF_BLOBS + 1)) "${WORK_DIR}/blob_list.txt" | while read -r file; do
-    cp "$file" "${AI_LAYER_2}/usr/share/ollama/.ollama/blobs/"
-done
-
-echo "--> Compressing Layer 2: AI Part A..."
-mksquashfs "${AI_LAYER_1}" "${ISO_DIR}/live/02-ai-part-a.squashfs" -comp zstd
-
-echo "--> Compressing Layer 3: AI Part B..."
-mksquashfs "${AI_LAYER_2}" "${ISO_DIR}/live/03-ai-part-b.squashfs" -comp zstd
+# Layer 2: AI Models (All in one go, relies on UDF support)
+echo "--> Compressing Layer 2: AI Models..."
+AI_LAYER_DIR="${WORK_DIR}/ai_layer_full"
+mkdir -p "${AI_LAYER_DIR}/usr/share/ollama/.ollama"
+cp -r "${TARGET_MODEL_DIR}/." "${AI_LAYER_DIR}/usr/share/ollama/.ollama/"
+mksquashfs "${AI_LAYER_DIR}" "${ISO_DIR}/live/02-ai-models.squashfs" -comp zstd
 
 echo "--> Preparing Bootloader..."
 cp "${CHROOT_DIR}/boot"/vmlinuz* "${ISO_DIR}/live/vmlinuz"
@@ -202,8 +169,10 @@ menuentry "LuminOS v0.2.1 Live" {
 }
 EOF
 
-echo "--> Generating ISO image..."
-grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}"
+echo "--> Generating ISO image (UDF Mode)..."
+# FIX: Use -- -udf to enable UDF filesystem which supports files > 4GB
+# We also disable Joliet to avoid the 4GB limit error from that standard.
+grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}" -- -udf -joliet off
 
 echo "--> Cleaning up work directory..."
 sudo rm -rf "${WORK_DIR}"
