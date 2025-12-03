@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v7.1 - Multi-Layer AI) ======"
+echo "====== LUMINOS MASTER BUILD SCRIPT (v7.2 - Robust Layers) ======"
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Define Directories & Vars ---
@@ -42,10 +42,16 @@ mkdir -p "${TARGET_MODEL_DIR}"
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
-# Search existing models
-MODEL_FOUND=false
-POSSIBLE_LOCATIONS=("${USER_HOME}/.ollama/models" "/root/.ollama/models" "/usr/share/ollama/.ollama/models")
+POSSIBLE_LOCATIONS=(
+    "${USER_HOME}/.ollama/models"
+    "/usr/share/ollama/.ollama/models"
+    "/var/lib/ollama/.ollama/models"
+    "/root/.ollama/models"
+)
 
+MODEL_FOUND=false
+
+echo "--> Searching for existing models..."
 for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     if [ -d "$LOC" ]; then
         SIZE_CHECK=$(du -s "$LOC" | cut -f1)
@@ -58,7 +64,6 @@ for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
     fi
 done
 
-# Download if not found
 if [ "$MODEL_FOUND" = false ]; then
     echo "--> Model not found locally. Downloading..."
     curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
@@ -136,41 +141,46 @@ umount "${CHROOT_DIR}/proc"
 umount "${CHROOT_DIR}/dev/pts"
 umount "${CHROOT_DIR}/dev"
 
-# --- 8. Build the ISO (Multi-Layer Strategy) ---
+# --- 8. Build the ISO (Layered) ---
+# ---------------------------------------------------------
+# STRATEGY: 3 Layers to keep files under 4GB
+# 01-filesystem.squashfs (Base OS ~2GB)
+# 02-ai-part1.squashfs (Models Part A ~2.5GB)
+# 03-ai-part2.squashfs (Models Part B ~2.5GB)
+# ---------------------------------------------------------
 
-# Layer 1: Main OS (Base + Desktop + Apps)
-# We EXCLUDE the heavy AI models path here
+# Layer 1: Main OS (excludes AI models path)
 echo "--> Compressing Layer 1: Main OS..."
 mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd
 
-# Layer 2 & 3: AI Models (Split into chunks < 4GB)
-echo "--> Preparing AI Layers (Splitting models)..."
-
-# Prepare temporary folders for layers
+# Prepare AI Split
+echo "--> Preparing AI Layers..."
 AI_LAYER_1="${WORK_DIR}/ai_layer_1"
 AI_LAYER_2="${WORK_DIR}/ai_layer_2"
-mkdir -p "${AI_LAYER_1}/usr/share/ollama/.ollama"
-mkdir -p "${AI_LAYER_2}/usr/share/ollama/.ollama"
 
-# Copy all models to Layer 1 first
-cp -r "${TARGET_MODEL_DIR}/." "${AI_LAYER_1}/usr/share/ollama/.ollama/"
+# Create the structure
+mkdir -p "${AI_LAYER_1}/usr/share/ollama/.ollama/blobs"
+mkdir -p "${AI_LAYER_2}/usr/share/ollama/.ollama/blobs"
 
-# Move the heavy "blobs" folder to Layer 2 to balance size?
-# Better strategy: Move half of the blobs to Layer 2.
-BLOB_DIR_1="${AI_LAYER_1}/usr/share/ollama/.ollama/blobs"
-BLOB_DIR_2="${AI_LAYER_2}/usr/share/ollama/.ollama/blobs"
-mkdir -p "${BLOB_DIR_2}"
+# Copy the 'manifests' folder to Layer 1 (it's small)
+cp -r "${TARGET_MODEL_DIR}/manifests" "${AI_LAYER_1}/usr/share/ollama/.ollama/"
 
-echo "--> Distributing AI blobs across layers..."
-# Move roughly half the blobs to the second layer
-count=0
-for file in "${BLOB_DIR_1}"/*; do
-    if [ -f "$file" ]; then
-        if (( count % 2 == 0 )); then
-            mv "$file" "${BLOB_DIR_2}/"
-        fi
-        ((count++))
-    fi
+# Split the 'blobs' (The heavy files)
+echo "--> Splitting AI blobs..."
+# We simply list files and move half to layer 2.
+# This logic is safer than the loop.
+find "${TARGET_MODEL_DIR}/blobs" -type f > "${WORK_DIR}/blob_list.txt"
+TOTAL_BLOBS=$(wc -l < "${WORK_DIR}/blob_list.txt")
+HALF_BLOBS=$((TOTAL_BLOBS / 2))
+
+# Copy first half to Layer 1
+head -n "$HALF_BLOBS" "${WORK_DIR}/blob_list.txt" | while read -r file; do
+    cp "$file" "${AI_LAYER_1}/usr/share/ollama/.ollama/blobs/"
+done
+
+# Copy second half to Layer 2
+tail -n +$((HALF_BLOBS + 1)) "${WORK_DIR}/blob_list.txt" | while read -r file; do
+    cp "$file" "${AI_LAYER_2}/usr/share/ollama/.ollama/blobs/"
 done
 
 echo "--> Compressing Layer 2: AI Part A..."
@@ -179,7 +189,7 @@ mksquashfs "${AI_LAYER_1}" "${ISO_DIR}/live/02-ai-part-a.squashfs" -comp zstd
 echo "--> Compressing Layer 3: AI Part B..."
 mksquashfs "${AI_LAYER_2}" "${ISO_DIR}/live/03-ai-part-b.squashfs" -comp zstd
 
-echo "--> Preparing Bootloader (GRUB)..."
+echo "--> Preparing Bootloader..."
 cp "${CHROOT_DIR}/boot"/vmlinuz* "${ISO_DIR}/live/vmlinuz"
 cp "${CHROOT_DIR}/boot"/initrd.img* "${ISO_DIR}/live/initrd.img"
 
@@ -193,7 +203,6 @@ menuentry "LuminOS v0.2.1 Live" {
 EOF
 
 echo "--> Generating ISO image..."
-# No special flags needed now, individual squashfs files are small!
 grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}"
 
 echo "--> Cleaning up work directory..."
