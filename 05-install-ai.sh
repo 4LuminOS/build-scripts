@@ -17,7 +17,7 @@ chmod 444 "${MODELFILE}"
 cat > /usr/local/bin/luminos-reassemble.sh << "EOF"
 #!/bin/bash
 # Find files marked as split
-find /usr/share/ollama/.ollama -name "*.is_split" | while read marker; do
+while IFS= read -r -d '' marker; do
     ORIG_FILE="${marker%.is_split}"
     if [ ! -f "$ORIG_FILE" ]; then
         echo "Reassembling $ORIG_FILE..."
@@ -25,7 +25,7 @@ find /usr/share/ollama/.ollama -name "*.is_split" | while read marker; do
         cat "${ORIG_FILE}.part"* > "$ORIG_FILE"
         chown ollama:ollama "$ORIG_FILE"
     fi
-done
+done < <(find /usr/share/ollama/.ollama -name "*.is_split" -print0)
 EOF
 chmod +x /usr/local/bin/luminos-reassemble.sh
 

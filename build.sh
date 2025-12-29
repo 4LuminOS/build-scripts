@@ -13,10 +13,10 @@ AI_BUILD_DIR="${WORK_DIR}/ai_build"
 ISO_NAME="LuminOS-0.2.1-amd64.iso"
 
 # Cleanup
-sudo umount "${CHROOT_DIR}/sys" &>/dev/null || true
-sudo umount "${CHROOT_DIR}/proc" &>/dev/null || true
-sudo umount "${CHROOT_DIR}/dev/pts" &>/dev/null || true
-sudo umount "${CHROOT_DIR}/dev" &>/dev/null || true
+# Unmount in reverse order if they exist
+for mount_point in "${CHROOT_DIR}/sys" "${CHROOT_DIR}/proc" "${CHROOT_DIR}/dev/pts" "${CHROOT_DIR}/dev"; do
+    mountpoint -q "$mount_point" 2>/dev/null && sudo umount "$mount_point" || true
+done
 pkill -f "ollama serve" || true
 sudo rm -rf "${WORK_DIR}"
 sudo rm -f "${BASE_DIR}/${ISO_NAME}"
@@ -69,7 +69,7 @@ fi
 # 3b. CUT LARGE FILES (The Key Fix)
 echo "--> Cutting large AI files into 1GB chunks..."
 # Find files > 900MB (safety margin) inside the models directory
-find "${TARGET_MODEL_DIR}" -type f -size +900M | while read file; do
+while IFS= read -r -d '' file; do
     echo "Splitting $file ..."
     # Split into chunks named .partaa, .partab, etc.
     split -b 900M "$file" "$file.part"
@@ -77,7 +77,7 @@ find "${TARGET_MODEL_DIR}" -type f -size +900M | while read file; do
     touch "$file.is_split"
     # Remove the original giant file so it doesn't get into the ISO
     rm "$file"
-done
+done < <(find "${TARGET_MODEL_DIR}" -type f -size +900M -print0)
 
 # --- 4. Bootstrap System ---
 echo "--> Bootstrapping Debian..."
@@ -131,7 +131,7 @@ echo "--> Creating Layers..."
 
 # Layer 1: OS (Excluding models path)
 echo "   Layer 1 (OS)..."
-mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd
+mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd -processors "$(nproc)"
 
 # Prepare distribution directories
 L2="${WORK_DIR}/layer2"
@@ -152,7 +152,7 @@ mkdir -p "$L3/usr/share/ollama/.ollama/blobs"
 mkdir -p "$L4/usr/share/ollama/.ollama/blobs"
 
 COUNT=0
-find "${TARGET_MODEL_DIR}/blobs" -type f | while read file; do
+while IFS= read -r -d '' file; do
     MOD=$((COUNT % 3))
     if [ $MOD -eq 0 ]; then
         cp "$file" "$L2/usr/share/ollama/.ollama/blobs/"
@@ -162,14 +162,14 @@ find "${TARGET_MODEL_DIR}/blobs" -type f | while read file; do
         cp "$file" "$L4/usr/share/ollama/.ollama/blobs/"
     fi
     COUNT=$((COUNT + 1))
-done
+done < <(find "${TARGET_MODEL_DIR}/blobs" -type f -print0)
 
 echo "   Layer 2..."
-mksquashfs "$L2" "${ISO_DIR}/live/02-ai-part1.squashfs" -comp zstd
+mksquashfs "$L2" "${ISO_DIR}/live/02-ai-part1.squashfs" -comp zstd -processors "$(nproc)"
 echo "   Layer 3..."
-mksquashfs "$L3" "${ISO_DIR}/live/03-ai-part2.squashfs" -comp zstd
+mksquashfs "$L3" "${ISO_DIR}/live/03-ai-part2.squashfs" -comp zstd -processors "$(nproc)"
 echo "   Layer 4..."
-mksquashfs "$L4" "${ISO_DIR}/live/04-ai-part3.squashfs" -comp zstd
+mksquashfs "$L4" "${ISO_DIR}/live/04-ai-part3.squashfs" -comp zstd -processors "$(nproc)"
 
 # --- 7. Bootloader & Final ISO ---
 echo "--> Bootloader..."
