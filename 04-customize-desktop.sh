@@ -4,9 +4,8 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "--> Removing unwanted packages..."
 PACKAGES_TO_REMOVE="kmahjongg kmines kpat ksnake kmail kontact akregator"
-for pkg in $PACKAGES_TO_REMOVE; do
-    apt-get purge -y "$pkg" || true
-done
+# Batch removal is more efficient than sequential
+apt-get purge -y $PACKAGES_TO_REMOVE || true
 apt-get autoremove -y
 
 echo "--> Setting up global assets..."
