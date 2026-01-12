@@ -17,9 +17,9 @@ If you boot the ISO, use these credentials to log in:
 
 > **⚠️ Important for AZERTY Users:**
 > The live system boots with a **US (QWERTY)** keyboard layout by default.
-> To type `luminos`, you must press: **`l` `u` `,` `i` `n` `o` `s`**
+> To type "luminos", use the digital keyboard (the one on screen). You'll find the option in the bottom left corner. Alternatively, you can also press: **`l` `u` `,` `i` `n` `o` `s`**
 > *(The `m` is located on the `,` key).*
-> Sorry for the inconvenience, known issue.
+> Sorry for the inconvenience... 😅 will fix this.
 
 ### How to try it
 1.  **Get** the ISO (from Releases -> soon or build it yourself).
@@ -28,7 +28,7 @@ If you boot the ISO, use these credentials to log in:
 
 ---
 
-## 📦 Included Software (v0.2.1)
+## 📦 Included Software
 
 LuminOS comes "batteries included", and some default apps for productivity:
 
