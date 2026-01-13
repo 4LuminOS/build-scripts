@@ -54,7 +54,7 @@ We use a transparent, manual build process for good stability.
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/4LuminOS/build-scripts.git](https://github.com/4LuminOS/build-scripts.git)
+    git clone https://github.com/4LuminOS/build-scripts.git
     cd build-scripts
     ```
 
