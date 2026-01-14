@@ -4,7 +4,7 @@ set -e
 echo "--> INSTALLING SOFTWARE (Zen Browser & Tools)..."
 
 # 1. Base Tools & UI Assets
-# REMOVED: neofetch (I assume package is dead/archived in Debian Trixie, i'll try with fastfetch later)
+# We add ‘jq’ to parse the GitHub API properly.
 apt-get update
 apt-get install -y \
     htop \
@@ -14,24 +14,28 @@ apt-get install -y \
     unzip \
     bzip2 \
     vlc \
+    jq \
     dmz-cursor-theme \
     papirus-icon-theme
 
-# 2. ZEN BROWSER INSTALLATION
-echo "--> Installing Zen Browser..."
+# 2. ZEN BROWSER INSTALLATION (Dynamic Fetch)
+echo "--> Detecting latest Zen Browser..."
 mkdir -p /opt/zen-browser
-# URL dynamique vers la dernière release Linux
-ZEN_URL="https://github.com/zen-browser/desktop/releases/latest/download/zen.linux-x86_64.tar.bz2"
 
-wget -O /tmp/zen.tar.bz2 "$ZEN_URL"
-# Extraction
-tar -xjf /tmp/zen.tar.bz2 -C /opt/zen-browser --strip-components=1
+# We ask the GitHub API for the exact URL of the tar.bz2 file for Linux.
+ZEN_API_URL="https://api.github.com/repos/zen-browser/desktop/releases/latest"
+ZEN_DOWNLOAD_URL=$(curl -s "$ZEN_API_URL" | jq -r '.assets[] | select(.name | contains("linux-x86_64.tar.bz2")) | .browser_download_url' | head -n 1)
 
-# Symbolic link
-ln -sf /opt/zen-browser/zen /usr/local/bin/zen-browser
-
-# Shortcut (.desktop)
-cat > /usr/share/applications/zen-browser.desktop <<EOF
+if [ -n "$ZEN_DOWNLOAD_URL" ] && [ "$ZEN_DOWNLOAD_URL" != "null" ]; then
+    echo "--> Downloading Zen from: $ZEN_DOWNLOAD_URL"
+    wget -O /tmp/zen.tar.bz2 "$ZEN_DOWNLOAD_URL"
+    
+    echo "--> Extracting Zen..."
+    tar -xjf /tmp/zen.tar.bz2 -C /opt/zen-browser --strip-components=1
+    ln -sf /opt/zen-browser/zen /usr/local/bin/zen-browser
+    
+    # Shortcut (.desktop)
+    cat > /usr/share/applications/zen-browser.desktop <<EOF
 [Desktop Entry]
 Name=Zen Browser
 Comment=Experience tranquility
@@ -43,11 +47,17 @@ Categories=Network;WebBrowser;
 StartupNotify=true
 EOF
 
-# Set Zen as default web browser
-update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/zen-browser 200
-update-alternatives --set x-www-browser /usr/local/bin/zen-browser
+    # Set as default
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/zen-browser 200
+    update-alternatives --set x-www-browser /usr/local/bin/zen-browser
+    
+    rm -f /tmp/zen.tar.bz2
+    echo "--> Zen Browser installed successfully."
 
-# Clean up
-rm -f /tmp/zen.tar.bz2
+else
+    echo "WARNING: Could not find Zen Browser asset. Falling back to Firefox"
+    apt-get install -y firefox-esr
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox-esr 200
+fi
 
 echo "--> Software installation complete."
