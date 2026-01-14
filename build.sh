@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "====== LUMINOS MASTER BUILD SCRIPT (v8.0 - The Ultimate Split) ======"
+echo "======= LUMINOS MASTER BUILD SCRIPT (v8.2) ======="
 if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
 
 # --- 1. Setup ---
@@ -13,7 +13,6 @@ AI_BUILD_DIR="${WORK_DIR}/ai_build"
 ISO_NAME="LuminOS-0.2.1-amd64.iso"
 
 # Cleanup
-# Unmount in reverse order if they exist
 for mount_point in "${CHROOT_DIR}/sys" "${CHROOT_DIR}/proc" "${CHROOT_DIR}/dev/pts" "${CHROOT_DIR}/dev"; do
     mountpoint -q "$mount_point" 2>/dev/null && sudo umount "$mount_point" || true
 done
@@ -66,18 +65,14 @@ if [ "$MODEL_FOUND" = false ]; then
     fi
 fi
 
-# 3b. CUT LARGE FILES (The Key Fix)
-echo "--> Cutting large AI files into 1GB chunks..."
-# Find files > 900MB (safety margin) inside the models directory
-while IFS= read -r -d '' file; do
+# 3b. CUT LARGE FILES
+echo "--> Cutting large AI files into 900MB chunks..."
+find "${TARGET_MODEL_DIR}" -type f -size +900M -print0 | while IFS= read -r -d '' file; do
     echo "Splitting $file ..."
-    # Split into chunks named .partaa, .partab, etc.
     split -b 900M "$file" "$file.part"
-    # Create a marker file to tell the OS this file needs reassembly
     touch "$file.is_split"
-    # Remove the original giant file so it doesn't get into the ISO
     rm "$file"
-done < <(find "${TARGET_MODEL_DIR}" -type f -size +900M -print0)
+done
 
 # --- 4. Bootstrap System ---
 echo "--> Bootstrapping Debian..."
@@ -129,7 +124,7 @@ umount "${CHROOT_DIR}/dev"
 # --- 6. Build ISO (Multi-Layer Distribution) ---
 echo "--> Creating Layers..."
 
-# Layer 1: OS (Excluding models path)
+# Layer 1: OS (Exclude .ollama to avoid duplicating files)
 echo "   Layer 1 (OS)..."
 mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e usr/share/ollama/.ollama -comp zstd -processors "$(nproc)"
 
@@ -137,32 +132,35 @@ mksquashfs "${CHROOT_DIR}" "${ISO_DIR}/live/01-filesystem.squashfs" -e boot -e u
 L2="${WORK_DIR}/layer2"
 L3="${WORK_DIR}/layer3"
 L4="${WORK_DIR}/layer4"
-mkdir -p "$L2/usr/share/ollama/.ollama"
-mkdir -p "$L3/usr/share/ollama/.ollama"
-mkdir -p "$L4/usr/share/ollama/.ollama"
+
+# FIX: added /models/ in the path !
+mkdir -p "$L2/usr/share/ollama/.ollama/models"
+mkdir -p "$L3/usr/share/ollama/.ollama/models"
+mkdir -p "$L4/usr/share/ollama/.ollama/models"
 
 # Copy manifests to Layer 2
-cp -r "${TARGET_MODEL_DIR}/manifests" "$L2/usr/share/ollama/.ollama/" 2>/dev/null || true
+mkdir -p "$L2/usr/share/ollama/.ollama/models/manifests"
+cp -r "${TARGET_MODEL_DIR}/manifests/." "$L2/usr/share/ollama/.ollama/models/manifests/" 2>/dev/null || true
 
-# Distribute blobs (chunks) across 3 layers to be safe
-# With ~6GB total, each layer will be ~2GB max. Safe!
+# Distribute blobs (chunks) across 3 layers
 echo "   Distributing chunks..."
-mkdir -p "$L2/usr/share/ollama/.ollama/blobs"
-mkdir -p "$L3/usr/share/ollama/.ollama/blobs"
-mkdir -p "$L4/usr/share/ollama/.ollama/blobs"
+# FIX: added /models/ in the path !
+mkdir -p "$L2/usr/share/ollama/.ollama/models/blobs"
+mkdir -p "$L3/usr/share/ollama/.ollama/models/blobs"
+mkdir -p "$L4/usr/share/ollama/.ollama/models/blobs"
 
 COUNT=0
-while IFS= read -r -d '' file; do
+find "${TARGET_MODEL_DIR}/blobs" -type f -print0 | while IFS= read -r -d '' file; do
     MOD=$((COUNT % 3))
     if [ $MOD -eq 0 ]; then
-        cp "$file" "$L2/usr/share/ollama/.ollama/blobs/"
+        cp "$file" "$L2/usr/share/ollama/.ollama/models/blobs/"
     elif [ $MOD -eq 1 ]; then
-        cp "$file" "$L3/usr/share/ollama/.ollama/blobs/"
+        cp "$file" "$L3/usr/share/ollama/.ollama/models/blobs/"
     else
-        cp "$file" "$L4/usr/share/ollama/.ollama/blobs/"
+        cp "$file" "$L4/usr/share/ollama/.ollama/models/blobs/"
     fi
     COUNT=$((COUNT + 1))
-done < <(find "${TARGET_MODEL_DIR}/blobs" -type f -print0)
+done
 
 echo "   Layer 2..."
 mksquashfs "$L2" "${ISO_DIR}/live/02-ai-part1.squashfs" -comp zstd -processors "$(nproc)"
@@ -191,11 +189,6 @@ grub-mkrescue -o "${BASE_DIR}/${ISO_NAME}" "${ISO_DIR}"
 echo "--> Cleanup..."
 sudo rm -rf "${WORK_DIR}"
 
-if [ -f "${BASE_DIR}/${ISO_NAME}" ]; then
-    ISO_SIZE=$(du -h "${BASE_DIR}/${ISO_NAME}" | cut -f1)
-    echo "SUCCESS: ISO Built! Size: $ISO_SIZE"
-else
-    echo "ERROR: Build failed!"
-    exit 1
-fi
+ISO_SIZE=$(du -h "${BASE_DIR}/${ISO_NAME}" | cut -f1)
+echo "SUCCESS: ISO Built! Size: $ISO_SIZE"
 exit 0
