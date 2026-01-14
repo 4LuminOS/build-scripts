@@ -1,46 +1,55 @@
 #!/bin/bash
 set -e
-export DEBIAN_FRONTEND=noninteractive
 
-echo "--> Installing Essential Software..."
+echo "--> INSTALLING SOFTWARE (Zen Browser & Tools)..."
 
-# 0. Prerequisite: Install curl (needed for downloading OnlyOffice)
-echo "--> Installing download tools..."
-apt-get install -y curl
-
-# 1. Multimedia & Codecs (The "Play Everything" Pack)
-# ffmpeg, gstreamer plugins for wide format support, and VLC
-echo "--> Installing Codecs and VLC..."
+# 1. Base Tools & UI Assets
+apt-get update
 apt-get install -y \
-    ffmpeg \
-    libavcodec-extra \
-    gstreamer1.0-libav \
-    gstreamer1.0-plugins-ugly \
-    gstreamer1.0-vaapi \
-    vlc
+    htop \
+    w3m \
+    curl \
+    wget \
+    unzip \
+    bzip2 \
+    neofetch \
+    vlc \
+    dmz-cursor-theme \
+    papirus-icon-theme
 
-# 2. System Tools
-# Timeshift for backups, Flatpak for app store, unrar for archives
-echo "--> Installing System Tools..."
-apt-get install -y \
-    timeshift \
-    flatpak \
-    plasma-discover-backend-flatpak \
-    unrar-free \
-    p7zip-full
+# 2. ZEN BROWSER INSTALLATION
+echo "--> Installing Zen Browser..."
+mkdir -p /opt/zen-browser
+# Dynamic URL to the latest Linux release
+ZEN_URL="https://github.com/zen-browser/desktop/releases/latest/download/zen.linux-x86_64.tar.bz2"
 
-# Configure Flathub (so the user has apps right away)
-echo "--> Adding Flathub repository..."
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+wget -O /tmp/zen.tar.bz2 "$ZEN_URL"
+# Extraction
+tar -xjf /tmp/zen.tar.bz2 -C /opt/zen-browser --strip-components=1
 
-# 3. Productivity: OnlyOffice
-# We download the latest .deb directly from OnlyOffice servers
-echo "--> Downloading & Installing OnlyOffice..."
-ONLYOFFICE_URL="https://download.onlyoffice.com/install/desktop/editors/linux/onlyoffice-desktopeditors_amd64.deb"
-curl -L -o /tmp/onlyoffice.deb "$ONLYOFFICE_URL"
+ln -sf /opt/zen-browser/zen /usr/local/bin/zen-browser
 
-# Install via apt to handle dependencies automatically
-apt-get install -y /tmp/onlyoffice.deb
+# Shortcut (.desktop)
+cat > /usr/share/applications/zen-browser.desktop <<EOF
+[Desktop Entry]
+Name=Zen Browser
+Comment=Experience tranquility
+Exec=zen-browser %u
+Icon=/opt/zen-browser/browser/chrome/icons/default/default128.png
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+StartupNotify=true
+EOF
+
+# Set zen as the default web browser
+update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/zen-browser 200
+update-alternatives --set x-www-browser /usr/local/bin/zen-browser
+
+# clean up
+rm -f /tmp/zen.tar.bz2
+
+echo "--> Software installation complete."
 rm /tmp/onlyoffice.deb
 
 echo "SUCCESS: Essential software installed."
