@@ -4,6 +4,7 @@ set -e
 echo "--> INSTALLING SOFTWARE (Zen Browser & Tools)..."
 
 # 1. Base Tools & UI Assets
+# REMOVED: neofetch (I assume package is dead/archived in Debian Trixie, i'll try with fastfetch later)
 apt-get update
 apt-get install -y \
     htop \
@@ -12,7 +13,6 @@ apt-get install -y \
     wget \
     unzip \
     bzip2 \
-    neofetch \
     vlc \
     dmz-cursor-theme \
     papirus-icon-theme
@@ -20,13 +20,14 @@ apt-get install -y \
 # 2. ZEN BROWSER INSTALLATION
 echo "--> Installing Zen Browser..."
 mkdir -p /opt/zen-browser
-# Dynamic URL to the latest Linux release
+# URL dynamique vers la dernière release Linux
 ZEN_URL="https://github.com/zen-browser/desktop/releases/latest/download/zen.linux-x86_64.tar.bz2"
 
 wget -O /tmp/zen.tar.bz2 "$ZEN_URL"
 # Extraction
 tar -xjf /tmp/zen.tar.bz2 -C /opt/zen-browser --strip-components=1
 
+# Symbolic link
 ln -sf /opt/zen-browser/zen /usr/local/bin/zen-browser
 
 # Shortcut (.desktop)
@@ -42,14 +43,11 @@ Categories=Network;WebBrowser;
 StartupNotify=true
 EOF
 
-# Set zen as the default web browser
+# Set Zen as default web browser
 update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/zen-browser 200
 update-alternatives --set x-www-browser /usr/local/bin/zen-browser
 
-# clean up
+# Clean up
 rm -f /tmp/zen.tar.bz2
 
 echo "--> Software installation complete."
-rm /tmp/onlyoffice.deb
-
-echo "SUCCESS: Essential software installed."
