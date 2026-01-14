@@ -2,34 +2,33 @@
 set -e
 export DEBIAN_FRONTEND=noninteractive
 
-echo "--> Removing unwanted packages..."
-PACKAGES_TO_REMOVE="kmahjongg kmines kpat ksnake kmail kontact akregator"
-# Batch removal is more efficient than sequential
-apt-get purge -y $PACKAGES_TO_REMOVE || true
+echo "--> CUSTOMIZING DESKTOP (Theme, Transparency, Cursor)..."
+
+# Clean Bloat
+apt-get purge -y kmahjongg kmines kpat ksnake kmail kontact akregator || true
 apt-get autoremove -y
 
-echo "--> Setting up global assets..."
-# Ensure the wallpaper directory exists
-mkdir -p /usr/share/wallpapers/luminos/
-# (Note: The actual image files are copied by build.sh later, 
-# but we ensure the folder structure is ready here if needed)
-
-# --- CONFIGURATION GENERATION ---
-# We create a temporary folder to hold our configs first
+echo "--> Generating Configs..."
 CONFIG_TMP="/tmp/luminos-configs"
 mkdir -p "$CONFIG_TMP/.config"
 
-# 1. Dark Theme Config
+# 1. Dark Theme
 cat > "$CONFIG_TMP/.config/kdeglobals" << "EOF"
 [General]
 ColorScheme=BreezeDark
 Name=BreezeDark
 [Icons]
-Theme=breeze-dark
+Theme=Papirus-Dark
 EOF
 
-# 2. Wallpaper Config
-# We configure it for both standard plasma and the desktop container
+# 2. Modern Cursor (Nécessite script 08)
+cat > "$CONFIG_TMP/.config/kcminputrc" << "EOF"
+[Mouse]
+cursorTheme=DMZ-White
+cursorSize=24
+EOF
+
+# 3. Wallpaper & Transparency
 cat > "$CONFIG_TMP/.config/plasma-org.kde.plasma.desktop-appletsrc" << "EOF"
 [Containments][1]
 wallpaperplugin=org.kde.image
@@ -37,42 +36,33 @@ wallpaperplugin=org.kde.image
 [Containments][1][Wallpaper][org.kde.image][General]
 Image=file:///usr/share/wallpapers/luminos/luminos-wallpaper-default.png
 FillMode=2
+
+[Containments][1][General]
+panelOpacity=1
 EOF
 
-# 3. SDDM (Login Screen) Config
+# 4. SDDM Theme
 mkdir -p /etc/sddm.conf.d/
 cat > /etc/sddm.conf.d/luminos-theme.conf << "EOF"
 [Theme]
 Current=breeze
 [General]
-# Ensure we point to the right background for the login screen
 Background=/usr/share/wallpapers/luminos/luminos-sddm-background.png
 EOF
 
-
-# --- APPLYING TO USERS ---
-
-# 1. Apply to Skeleton (for any future new users)
+# --- APPLY TO USERS ---
 cp -r "$CONFIG_TMP/.config" /etc/skel/
 
-# 2. Force Apply to 'liveuser' (The Fix!)
-# We verify if the user exists, then inject the configs
 if id "liveuser" &>/dev/null; then
-    echo "--> Injecting configurations into liveuser home..."
+    echo "--> Injecting into liveuser..."
     HOMEDIR="/home/liveuser"
     mkdir -p "$HOMEDIR/.config"
-    
-    # Copy config files
-    cp "$CONFIG_TMP/.config/kdeglobals" "$HOMEDIR/.config/"
-    cp "$CONFIG_TMP/.config/plasma-org.kde.plasma.desktop-appletsrc" "$HOMEDIR/.config/"
-    
-    # CRITICAL: Fix permissions so liveuser owns their own files
+    cp -r "$CONFIG_TMP/.config/." "$HOMEDIR/.config/"
     chown -R liveuser:liveuser "$HOMEDIR"
-else
-    echo "WARNING: liveuser not found, configs only applied to skel."
 fi
 
-# Cleanup
+rm -rf "$CONFIG_TMP"
+echo "--> Desktop Customization Complete."
 rm -rf "$CONFIG_TMP"
 
-echo "SUCCESS: Desktop environment customized and applied to liveuser."
+echo "SUCCESS: Desktop environment ready and applied."
