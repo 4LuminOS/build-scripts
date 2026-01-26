@@ -6,8 +6,8 @@ import (
 	"os/exec"
 )
 
-// PENDING CONCURRENCY IMPLEMENTATION
-func OsCheck() (failed bool, err error) {
+// OsCheck PENDING CONCURRENCY IMPLEMENTATION
+func OsCheck() (passed bool) {
 
 	// cmd sends this command to the OS shell
 	cmd := exec.Command("cat", "/etc/os-release")
@@ -25,7 +25,7 @@ func OsCheck() (failed bool, err error) {
 	out := make([]byte, 400)
 
 	// Read from standard output, We will read the entire /etc/os-release file
-	_, err =  stdout.Read(out)
+	_, err = stdout.Read(out)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -35,25 +35,22 @@ func OsCheck() (failed bool, err error) {
 	}
 
 	/*
-	We could Refactor this to use the PRETTY NAME field,
-	but I am unsure if that value can be changed when changing hostname (pending test), will re-implement based on results
-	until then, we Will use the Distro code name to ensure a reliable answer
+		We could Refactor this to use the PRETTY NAME field,
+		but I am unsure if that value can be changed when changing hostname (pending test), will re-implement based on results
+		until then, we Will use the Distro code name to ensure a reliable answer
+
+		This version is more reliable and preferred so I'll keep it until any problems arise
 	*/
 
-	//return bytes.ContainsAny(out, "Noble Numbat"), nil
-
-
-	switch  {
-	case bytes.ContainsAny(out, "Noble Numbat"): // Ubuntu 24.04 LTS
-		return !failed, nil
-	case bytes.ContainsAny(out, "Trixie"): // Debian 13
-		return !failed, nil
-	case bytes.ContainsAny(out, "Bookworm"): // Debian 12
-		return !failed, nil
+	switch {
+	case bytes.Contains(out, []byte("Noble Numbat")): // Ubuntu 24.04 LTS
+		return true
+	case bytes.Contains(out, []byte("Trixie")): // Debian 13
+		return true
+	case bytes.Contains(out, []byte("Bookworm")): // Debian 12
+		return true
 	default:
-		return failed, nil // Neither of the Above
+		return false // Neither of the Above
 
 	}
-
 }
-
