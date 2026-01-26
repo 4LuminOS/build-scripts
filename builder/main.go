@@ -2,21 +2,19 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"luminBuilder/checks"
 )
 
-//"sync"
-
-func main(){
+func main() {
 	/*
-	wg := sync.WaitGroup{}
-	osCh := make(chan string)
-	wg.Add(1)
+		wg := sync.WaitGroup{}
+		osCh := make(chan string)
+		wg.Add(1)
 	*/
-	osPassed, err := checks.OsCheck()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("OsCheck Passed?: %v \n", osPassed)
+	osPassed := checks.OsCheck()
+
+	storagePassed := checks.StorageCheck()
+
+	fmt.Printf("Storage Check passed: %v\n", storagePassed)
+	fmt.Printf("OsCheck Passed: %v \n", osPassed)
 }
