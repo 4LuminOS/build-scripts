@@ -5,7 +5,7 @@ import (
 )
 
 func NetCheck() (passed bool) {
-	conn, err := net.Dial("tcp", "go.dev:http")
+	conn, err := net.DialTimeout("tcp", "go.dev:http", 10)
 	if err != nil {
 		return false
 	}
