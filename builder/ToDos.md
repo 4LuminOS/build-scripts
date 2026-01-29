@@ -4,7 +4,7 @@
         - [x] Network
         - [x] Privelage
         - [x] Storage
-- [] Create Directories for build
+- [x] Create Directories for build - Check/rewrite recommended.
 - [] Install Dependencies (Will give an updated list, as some may have been eliminated with the new libraries chosen down below)
         We should just use the os.exec function, simplifies everything greatly
 

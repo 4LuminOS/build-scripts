@@ -2,7 +2,7 @@
 set -e
 export DEBIAN_FRONTEND=noninteractive
 echo "--> Configuring APT sources..."
-# (live-build a déjà fait ça, mais on s'en assure)
+# (live-build already did that, but we make sure)
 echo "--> Updating package lists and upgrading system..."
 apt-get update && apt-get -y upgrade
 echo "--> Setting hostname to LuminOS..."

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"luminBuilder/checks"
+	"luminBuilder/buildSteps"
 )
 
 func main() {
@@ -15,5 +16,6 @@ func main() {
 	fmt.Printf("Storage Check passed: %v\n", storagePassed)
 	fmt.Printf("OsCheck Passed: %v\n", osPassed)
 	fmt.Printf("NetCheck Passed: %v \n", netPassed)
-
+	// Build.
+	buildsteps.FileSystemSetup()
 }
