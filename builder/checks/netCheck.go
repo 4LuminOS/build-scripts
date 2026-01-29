@@ -4,12 +4,12 @@ import (
 	"net"
 )
 
-func NetCheck() (passed bool, err error) {
+func NetCheck() (passed bool) {
 	conn, err := net.Dial("tcp", "go.dev:http")
 	if err != nil {
-		return false, err
+		return false
 	}
 
 	defer conn.Close()
-	return true, nil
+	return true
 }

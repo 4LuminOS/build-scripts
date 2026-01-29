@@ -2,9 +2,9 @@
 set -e
 
     echo "======= LUMINOS MASTER BUILD SCRIPT (v8.2) ======="
-<<1Replace-with-Go-Code>
+
     if [ "$(id -u)" -ne 0 ]; then echo "ERROR: This script must be run as root."; exit 1; fi
-1Replace-with-Go-Code
+
 # --- 1. Setup ---
 BASE_DIR=$(dirname "$(readlink -f "$0")")
 WORK_DIR="${BASE_DIR}/work"
@@ -27,18 +27,18 @@ mkdir -p "${CHROOT_DIR}" "${ISO_DIR}/live" "${ISO_DIR}/boot/grub" "${AI_BUILD_DI
 echo "--> Installing dependencies..."
 apt-get update
 apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools curl rsync
-<<2Replace-with-Go-Code
+
     # --- 3. PREPARE AI ---
     echo "--> Preparing AI..."
     TARGET_MODEL_DIR="${AI_BUILD_DIR}/models"
     mkdir -p "${TARGET_MODEL_DIR}"
-    
+
     # 3a. Find or Download
     REAL_USER="${SUDO_USER:-$USER}"
     USER_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
     POSSIBLE_LOCATIONS=("${USER_HOME}/.ollama/models" "/root/.ollama/models" "/usr/share/ollama/.ollama/models")
     MODEL_FOUND=false
-    
+
     for LOC in "${POSSIBLE_LOCATIONS[@]}"; do
         if [ -d "$LOC" ]; then
             SIZE_CHECK=$(du -s "$LOC" | cut -f1)
@@ -50,7 +50,7 @@ apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64
             fi
         fi
     done
-    
+
     if [ "$MODEL_FOUND" = false ]; then
         echo "--> Downloading models..."
         curl -fL "https://github.com/ollama/ollama/releases/download/v0.1.32/ollama-linux-amd64" -o "${AI_BUILD_DIR}/ollama"
@@ -65,7 +65,7 @@ apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64
             cp -r "${AI_BUILD_DIR}/.ollama/models/." "${TARGET_MODEL_DIR}/"
         fi
     fi
-2Replace-with-Go-Code
+
 
 # 3b. CUT LARGE FILES
 echo "--> Cutting large AI files into 900MB chunks..."
