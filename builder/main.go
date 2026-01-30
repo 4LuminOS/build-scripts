@@ -1,21 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"luminBuilder/checks"
 	"luminBuilder/buildSteps"
+	"luminBuilder/checks"
+	"os"
 )
 
 func main() {
-	privCheck := checks.PrivelageCheck()
-	osPassed := checks.OsCheck()
-	netPassed := checks.NetCheck()
-	storagePassed := checks.StorageCheck()
+	passed := checks.AllChecks()
+	if passed != true {
+		os.Exit(1)
+	}
 
-	fmt.Printf("PrivelageCheck Passed: %v\n", privCheck)
-	fmt.Printf("Storage Check passed: %v\n", storagePassed)
-	fmt.Printf("OsCheck Passed: %v\n", osPassed)
-	fmt.Printf("NetCheck Passed: %v \n", netPassed)
 	// Build.
 	buildsteps.FileSystemSetup()
 }

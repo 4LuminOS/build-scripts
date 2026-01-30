@@ -1,51 +1,56 @@
 package buildsteps
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"fmt"
 	"path/filepath"
+	"strings"
 )
 
-func FileSystemSetup(){
-	const baseDirectory = "../LuminOS-build"
-	_, err := os.Stat(baseDirectory)
+const BaseDirectory = "../LuminOS-build"
+
+func FileSystemSetup() {
+	_, err := os.Stat(BaseDirectory)
+	fmt.Printf("Error at line 14: %v \n", err)
+
 	// Check if the base directory exists. If it does, yoink it (safely).
 	if !os.IsNotExist(err) {
 		fmt.Println("WARNING: Base build directory already exists, it will be deleted.")
-		fmt.Print("Proceed? [y/n] ")
-		var proceed string 
-		fmt.Scanln(&proceed)
-		switch  proceed {
+		fmt.Print("Proceed? [y/n] default:[n]: ")
+		var proceed string
+		_, _ = fmt.Scanln(&proceed)
+		switch strings.ToLower(proceed) {
 		case "y":
-			err := os.RemoveAll(baseDirectory)
+			err := os.RemoveAll(BaseDirectory)
 			if err != nil {
-				log.Fatalf("Failed to remove existant base directory: %v", err)
+				log.Fatalf("Failed to remove existent base directory: %v", err)
 			}
 		default:
 			fmt.Println("Aborted.")
 			os.Exit(0)
 		}
 	}
-	err = os.Mkdir(baseDirectory, os.FileMode(os.O_CREATE))
+	err = os.Mkdir(BaseDirectory, 0777)
 	if err != nil {
 		log.Fatalf("Failed to created base directory: %v", err)
 	}
 	// Create build subdirectories.
-	workDirectory := filepath.Join(baseDirectory, "work")
-	chrootDirectory := filepath.Join(baseDirectory, "chroot")
-	isoDirectory := filepath.Join(baseDirectory, "iso")
-	aiBuildDirectory := filepath.Join(baseDirectory, "ai_build")
-	if err := os.Mkdir(workDirectory, os.FileMode(os.O_RDWR)) ; err != nil {
+	workDirectory := filepath.Join(BaseDirectory, "work")
+	chrootDirectory := filepath.Join(BaseDirectory, "chroot")
+	isoDirectory := filepath.Join(BaseDirectory, "iso")
+	aiBuildDirectory := filepath.Join(BaseDirectory, "ai_build")
+
+	if err := os.Mkdir(workDirectory, 0777); err != nil {
 		log.Fatalf("Failed creating work directory: %v", err)
 	}
-	if err := os.Mkdir(chrootDirectory, os.FileMode(os.O_RDWR)) ; err != nil {
+	if err := os.Mkdir(chrootDirectory, 0777); err != nil {
 		log.Fatalf("Failed creating chroot directory: %v", err)
 	}
-	if err := os.Mkdir(isoDirectory, os.FileMode(os.O_RDWR)) ; err != nil {
+	if err := os.Mkdir(isoDirectory, 0777); err != nil {
 		log.Fatalf("Failed creating ISO directory: %v", err)
 	}
-	if err := os.Mkdir(aiBuildDirectory, os.FileMode(os.O_RDWR)) ; err != nil {
+	if err := os.Mkdir(aiBuildDirectory, 0777); err != nil {
 		log.Fatalf("Failed creating AI build directory: %v", err)
 	}
 }
