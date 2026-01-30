@@ -2,12 +2,13 @@ package checks
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os/exec"
 )
 
 // OsCheck PENDING CONCURRENCY IMPLEMENTATION
-func OsCheck() (passed bool) {
+func OsCheck() (passed bool, err error) {
 
 	// cmd sends this command to the OS shell
 	cmd := exec.Command("cat", "/etc/os-release")
@@ -39,18 +40,18 @@ func OsCheck() (passed bool) {
 		but I am unsure if that value can be changed when changing hostname (pending test), will re-implement based on results
 		until then, we Will use the Distro code name to ensure a reliable answer
 
-		This version is more reliable and preferred so I'll keep it until any problems arise
+		This version is more reliable and preferred, so I'll keep it until any problems arise
 	*/
 
 	switch {
 	case bytes.Contains(out, []byte("Noble Numbat")): // Ubuntu 24.04 LTS
-		return true
+		return true, nil
 	case bytes.Contains(out, []byte("Trixie")): // Debian 13
-		return true
+		return true, nil
 	case bytes.Contains(out, []byte("Bookworm")): // Debian 12
-		return true
+		return true, nil
 	default:
-		return false // Neither of the Above
+		return false, fmt.Errorf("builder cannot run on this operating system") // Neither of the Above
 
 	}
 }
