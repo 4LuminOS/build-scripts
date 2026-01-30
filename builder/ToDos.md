@@ -4,13 +4,13 @@
         - [x] Network
         - [x] Privelage
         - [x] Storage
-- [x] Create Directories for build - Check/rewrite recommended.
-- [] Install Dependencies (Will give an updated list, as some may have been eliminated with the new libraries chosen down below)
+- [x] Create Directories for build 
+- [] Install Dependencies - up for grabs (Will give an updated list, as some may have been eliminated with the new libraries chosen down below)
         We should just use the os.exec function, simplifies everything greatly
 
-- [] Bootstrapping Debian
+- [] Bootstrapping Debian - up for grabs
         [Debootstrap using os.exec](https://wiki.debian.org/Debootstrap): Any other way would be far more complicated than it should ever be
-- [] Download or Find the AI Models
+- [] Download or Find the AI Models - On it
         -> [Direct Official Link Finder!](https://github.com/amirrezaDev1378/ollama-model-direct-download/blob/master/documents/docs/Getting%20Direct%20Links.md)
                 We can hard-code the URLs, but that might be bad if they ever change anything (although it should be unlikely)
         -> [VPS Download Alternative (Terrible but still an option!)](https://github.com/Pyenb/Ollama-models?tab=readme-ov-file#download-links-)
