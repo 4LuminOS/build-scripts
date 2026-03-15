@@ -15,7 +15,7 @@ The system integrates **Lumin**, a fully offline AI assistant powered by **Ollam
 
 ---
 
-# 🚀 Vision
+## 🚀 Vision
 
 The goal of **LuminOS** is simple:
 
@@ -27,7 +27,7 @@ Just **pure local intelligence**.
 
 ---
 
-# 💿 Try LuminOS
+## 💿 Try LuminOS
 
 ### Default Credentials
 
