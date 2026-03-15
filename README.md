@@ -132,7 +132,7 @@ Privileges: sudo
 ### 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/LuminOS/build-scripts.git
+git clone https://github.com/4LuminOS/build-scripts.git
 cd build-scripts
 ```
 
