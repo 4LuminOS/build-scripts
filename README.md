@@ -1,7 +1,7 @@
 # 🌌 LuminOS Build Scripts
 
-![Build Status](https://img.shields.io/badge/build-stable-brightgreen)
-![Version](https://img.shields.io/badge/version-v0.3-blue)
+![Build Status](https://img.shields.io/badge/build-manual-lightgrey)
+![Version](https://img.shields.io/badge/version-0.2.1-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0-red)
 ![Platform](https://img.shields.io/badge/platform-Debian%2013-lightgrey)
 ![AI](https://img.shields.io/badge/AI-Local%20LLM-purple)
