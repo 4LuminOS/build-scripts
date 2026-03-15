@@ -1,81 +1,249 @@
-# LuminOS Build Scripts
+# 🌌 LuminOS Build Scripts
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]() [![Version](https://img.shields.io/badge/version-v0.2.1-blue)]()
+![Build Status](https://img.shields.io/badge/build-stable-brightgreen)
+![Version](https://img.shields.io/badge/version-v0.2.1-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0-red)
+![Platform](https://img.shields.io/badge/platform-Debian%2013-lightgrey)
+![AI](https://img.shields.io/badge/AI-Local%20LLM-purple)
+![Privacy](https://img.shields.io/badge/privacy-100%25%20Local-success)
 
-Welcome to the official repository for **LuminOS**.
+Welcome to the **official build system for LuminOS**.
 
-**LuminOS** is a lightweight, private, and intelligent Linux distribution based on **Debian 13 (Trixie)**. It features native integration of **Lumin**, a 100% local, offline AI assistant, and a curated suite of productivity tool
+**LuminOS** is a **privacy-focused AI operating system** built on **Debian 13 (Trixie)** designed for users who want **powerful AI tools running locally without cloud dependency**.
+
+The system integrates **Lumin**, a fully offline AI assistant powered by **Ollama + local LLM models**, while maintaining the transparency and stability of Debian.
 
 ---
 
-## 💿 Getting Started (Live ISO)
+# 🚀 Vision
+
+The goal of **LuminOS** is simple:
+
+> Build the **first truly transparent AI operating system** where AI runs **locally, securely, and privately**.
+
+No tracking.  
+No cloud dependency.  
+Just **pure local intelligence**.
+
+---
+
+# 💿 Try LuminOS
 
 ### Default Credentials
-If you boot the ISO, use these credentials to log in:
-* **User:** `liveuser`
-* **Password:** `luminos`
 
-> **⚠️ Important for AZERTY Users:**
-> The live system boots with a **US (QWERTY)** keyboard layout by default.
-> To type "luminos", use the digital keyboard (the one on screen). You'll find the option in the bottom left corner. Alternatively, you can also press: **`l` `u` `,` `i` `n` `o` `s`**
-> *(The `m` is located on the `,` key).*
-> Sorry for the inconvenience... 😅 will fix this.
+```
+User: liveuser
+Password: luminos
+```
 
-### How to try it
-1.  **Get** the ISO (from Releases -> soon or build it yourself).
-2.  **Flash** it to a USB stick using **BalenaEtcher** or **Ventoy**.
-3.  **Boot** your computer from the USB stick (also make sure Secure Boot is disabled in your BIOS).
+⚠️ **Keyboard Notice**
 
----
+The live ISO uses **US (QWERTY)** layout by default.
 
-## 📦 Included Software
+If you use **AZERTY**, type the password like this:
 
-LuminOS comes "batteries included", and some default apps for productivity:
+```
+l u , i n o s
+```
 
-* **Desktop:** KDE Plasma (Dark Theme).
-* **AI:** **Lumin** (powered by Ollama + Llama 3) - 100% Local & Offline.
-* **Productivity:** **OnlyOffice Desktop Editors** (Word, Excel, PowerPoint compatible).
-* **Multimedia:** **VLC Media Player** + Full Codec Pack (h.264, mp3, and more...).
-* **System:** **Timeshift** (Backups), **Flatpak** (App Store), **Firefox** (you guessed it, web borwser).
+(the `m` key is on the `,` position)
 
 ---
 
-## 🏗️ Build It Yourself
+# 📦 Included Software
 
-We use a transparent, manual build process for good stability.
+LuminOS ships with carefully selected software.
 
-### Prerequisites
-* Host: **Ubuntu 24.04 LTS** or **Debian 12+**.
-* Disk Space: ~30 GB free.
-* RAM: 8 GB minimum.
-* `sudo` privileges
+### Desktop
 
-### Build Instructions
+• **KDE Plasma (Dark Theme)**  
+• Modern UI  
+• Lightweight configuration  
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/4LuminOS/build-scripts.git
-    cd build-scripts
-    ```
+### AI Stack
 
-2.  **Run the build:**
-    ```bash
-    sudo ./build.sh
-    ```
+• **Lumin AI Assistant**  
+• **Ollama Runtime**  
+• **Local LLM models**  
+• Fully **offline capable**
 
-3.  **Retrieve the ISO:**
-    The final image `LuminOS-0.2.1-amd64.iso` will be generated in the project folder.
+### Productivity
+
+• **OnlyOffice Desktop Editors**  
+• Word / Excel / PowerPoint compatible  
+
+### Multimedia
+
+• **VLC Media Player**  
+• Full codec support (h264, mp3, etc)
+
+### System Tools
+
+• **Timeshift** – system restore  
+• **Flatpak** – application store  
+• **Firefox** – web browser  
+
+---
+
+# 🏗️ Architecture
+
+LuminOS follows a **transparent build pipeline**.
+
+```
+Host System
+   │
+   ▼
+Bootstrap Debian Base
+   │
+   ▼
+Install Core Packages
+   │
+   ▼
+Inject AI Runtime (Ollama)
+   │
+   ▼
+Install Desktop Environment
+   │
+   ▼
+Apply Customization
+   │
+   ▼
+Compress Filesystem (SquashFS)
+   │
+   ▼
+Generate Bootable Hybrid ISO
+```
 
 ---
 
-## 🤖 Architecture Overview
+# 🛠 Build LuminOS Yourself
 
-1.  **AI Prep:** Downloads Ollama and Llama 3 on the host to ensure integrity.
-2.  **Bootstrap:** Creates a pristine Debian Trixie base.
-3.  **Injection:** Copies scripts, assets, and AI models into the system.
-4.  **Customization:** Installs Kernel, Desktop, Themes, and Software via chroot hooks.
-5.  **Assembly:** Compresses the filesystem (SquashFS) and generates a Hybrid ISO.
+### Requirements
+
+```
+Host OS: Ubuntu 24.04 LTS or Debian 12+
+RAM: 8GB minimum
+Disk Space: 30GB+
+Privileges: sudo
+```
 
 ---
-**License:** GPL-3.0
-*Built with <3*
+
+### 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/4LuminOS/build-scripts.git
+cd build-scripts
+```
+
+---
+
+### 2️⃣ Start Build
+
+```bash
+sudo ./build.sh
+```
+
+---
+
+### 3️⃣ Retrieve ISO
+
+After completion:
+
+```
+LuminOS-0.2.1-amd64.iso
+```
+
+will appear in the project directory.
+
+---
+
+# 🤖 AI System
+
+LuminOS integrates **local AI inference**.
+
+```
+User
+ │
+ ▼
+Lumin AI Assistant
+ │
+ ▼
+Ollama Runtime
+ │
+ ▼
+Local LLM Model
+ │
+ ▼
+Response
+```
+
+Benefits:
+
+• Fully **offline AI**  
+• **No data leaves your machine**  
+• **No API cost**  
+• **Fast inference**
+
+---
+
+# 🛣️ Roadmap
+
+### Upcoming Improvements
+
+• Improve automated build system  
+• Add graphical installer  
+• Better AI assistant integration  
+• Reduce ISO size  
+• Improve hardware compatibility  
+• GPU acceleration for AI  
+• Multi-model AI support  
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome.
+
+You can help by:
+
+• Improving build scripts  
+• Fixing bugs  
+• Optimizing ISO generation  
+• Improving documentation  
+• Adding AI features  
+
+### Steps
+
+```
+1 Fork the repository
+2 Create a feature branch
+3 Commit your changes
+4 Open a Pull Request
+```
+
+---
+
+# 📜 License
+
+This project is licensed under:
+
+**GPL-3.0 License**
+
+---
+
+# 🌍 LuminOS Mission
+
+LuminOS aims to become a **next-generation AI operating system** where users can run powerful AI tools **locally, privately, and securely**.
+
+The long-term goal is to build a **fully transparent AI ecosystem**.
+
+---
+
+⭐ **If you like the project, consider starring the repository.**
+
+It helps the project grow and reach more developers.
+
+```
+Built with ❤️ by the LuminOS Community
+```
