@@ -11,5 +11,7 @@ Thumbs.db
 build/
 chroot/
 iso/
+scripts/
+*.iso
 LuminOS-build/
 /builder/luminBuilder
