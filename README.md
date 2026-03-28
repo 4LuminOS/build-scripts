@@ -125,6 +125,7 @@ Host OS: Ubuntu 24.04 LTS or Debian 12+
 RAM: 8GB minimum
 Disk Space: 30GB+
 Privileges: sudo
+Docker (optional, for building without root)
 ```
 
 ---
@@ -142,6 +143,12 @@ cd build-scripts
 
 ```bash
 sudo ./build.sh
+```
+
+or build inside a docker container to avoid building as root in your system (requires docker)
+
+```bash
+./run-build-docker.sh
 ```
 
 ---
