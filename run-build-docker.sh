@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+#make failing strictier
 set -euo pipefail
 
 IMAGE_NAME="luminos-builder"

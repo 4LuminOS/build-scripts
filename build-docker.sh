@@ -84,7 +84,7 @@ debootstrap --arch=amd64 --components=main,contrib,non-free-firmware --include=l
 mkdir -p "${CHROOT_DIR}/etc/apt/apt.conf.d"
 echo 'Acquire::IndexTargets::deb::Contents-deb "false";' > "${CHROOT_DIR}/etc/apt/apt.conf.d/99-no-contents"
 
-# Commented, because fails and  not needed inside docker
+# Commented, because it fails and not actually needed inside docker
 # echo "--> Mounting..."
 # mount --bind /dev "${CHROOT_DIR}/dev"
 # mount --bind /dev/pts "${CHROOT_DIR}/dev/pts"
@@ -118,7 +118,7 @@ chroot "${CHROOT_DIR}" /tmp/07-install-plymouth-theme.sh
 chroot "${CHROOT_DIR}" /tmp/08-install-software.sh
 chroot "${CHROOT_DIR}" /tmp/06-final-cleanup.sh
 
-# Commented, because fails and  not needed inside docker
+# Commented, because it fails and not actually needed inside docker
 # echo "--> Unmounting..."
 # umount "${CHROOT_DIR}/sys"
 # umount "${CHROOT_DIR}/proc"
