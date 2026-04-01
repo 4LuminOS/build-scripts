@@ -121,7 +121,7 @@ Generate Bootable Hybrid ISO
 ### Requirements
 
 ```
-Host OS: Ubuntu 24.04 LTS or Debian 12+
+Host OS: Debian 12+
 RAM: 8GB minimum
 Disk Space: 30GB+
 Privileges: sudo
