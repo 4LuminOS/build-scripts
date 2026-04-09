@@ -1,4 +1,4 @@
-# 🌌 LuminOS Build Scripts
+# 🌌 OlyntheOS | Build Scripts
 
 ![Build Status](https://img.shields.io/badge/build-stable-brightgreen)
 ![Version](https://img.shields.io/badge/version-v0.2.1-blue)
@@ -7,9 +7,9 @@
 ![AI](https://img.shields.io/badge/AI-Local%20LLM-purple)
 ![Privacy](https://img.shields.io/badge/privacy-100%25%20Local-success)
 
-Welcome to the **official build system for LuminOS**.
+Welcome to the **official build system for OlyntheOS**.
 
-**LuminOS** is a **privacy-focused AI operating system** built on **Debian 13 (Trixie)** designed for users who want **powerful AI tools running locally without cloud dependency**.
+**OlyntheOS** is a **privacy-focused AI operating system** built on **Debian 13 (Trixie)** designed for users who want **powerful AI tools running locally without cloud dependency**.
 
 The system integrates **Lumin**, a fully offline AI assistant powered by **Ollama + local LLM models**, while maintaining the transparency and stability of Debian.
 
@@ -17,17 +17,15 @@ The system integrates **Lumin**, a fully offline AI assistant powered by **Ollam
 
 ## 🚀 Vision
 
-The goal of **LuminOS** is simple:
+The goal of **OlyntheOS** is simple:
 
-> Build the **first truly transparent AI operating system** where AI runs **locally, securely, and privately**.
+> Build the **first truly transparent AI operating system** where AI runs **locally, securely, and privately** Where you don't only use an OS, you work with it.
 
-No tracking.  
-No cloud dependency.  
-Just **pure local intelligence**.
+With 0 tracking, No cloud dependency, and definitely no telemetry of any kind.
 
 ---
 
-## 💿 Try LuminOS
+## 💿 Try OlyntheOS
 
 ### Default Credentials
 
@@ -81,7 +79,7 @@ LuminOS ships with carefully selected software.
 
 • **Timeshift** – system restore  
 • **Flatpak** – application store  
-• **Firefox** – web browser  
+• **Zen Browser ** – default web browser (FOSS, firefox-based)
 
 ---
 
@@ -111,19 +109,19 @@ Apply Customization
 Compress Filesystem (SquashFS)
    │
    ▼
-Generate Bootable Hybrid ISO
+Generate Bootable ISO
 ```
 
 ---
 
-# 🛠 Build LuminOS Yourself
+# Build OlyntheOS Yourself! 😄
 
-### Requirements
+### Requirements to build the ISO
 
 ```
-Host OS: Debian 12+
+Host OS: Debian 12+ or Ubuntu 22+
 RAM: 8GB minimum
-Disk Space: 30GB+
+Disk Space: 20GB+
 Privileges: sudo
 Docker (optional, for building without root)
 ```
@@ -133,7 +131,7 @@ Docker (optional, for building without root)
 ### 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/4LuminOS/build-scripts.git
+git clone https://github.com/4LuminOS/OlyntheOS-Build-Scripts
 cd build-scripts
 ```
 
