@@ -165,7 +165,7 @@ will appear in the project directory.
 
 # 🤖 AI System
 
-LuminOS integrates **local AI inference**.
+OlyntheOS integrates **local AI inference**.
 
 ```
 User
@@ -192,13 +192,11 @@ Benefits:
 
 ---
 
-# 🛣️ Roadmap
-
 ### Upcoming Improvements
 
 • Improve automated build system  
 • Add graphical installer  
-• Better AI assistant integration  
+• Better AI integration  
 • Reduce ISO size  
 • Improve hardware compatibility  
 • GPU acceleration for AI  
@@ -208,7 +206,7 @@ Benefits:
 
 # 🤝 Contributing
 
-Contributions are welcome.
+Contributions are welcome. In fact, we kinda need your help.
 
 You can help by:
 
@@ -231,15 +229,15 @@ You can help by:
 
 # 📜 License
 
-This project is licensed under:
+This whole project is licensed under:
 
 **GPL-3.0 License**
 
 ---
 
-# 🌍 LuminOS Mission
+# 🌍 OlyntheOS Mission
 
-LuminOS aims to become a **next-generation AI operating system** where users can run powerful AI tools **locally, privately, and securely**.
+OlyntheOS aims to become a **next-generation AI operating system** where users can run powerful AI tools **locally, privately, and securely**.
 
 The long-term goal is to build a **fully transparent AI ecosystem**.
 
@@ -247,8 +245,8 @@ The long-term goal is to build a **fully transparent AI ecosystem**.
 
 ⭐ **If you like the project, consider starring the repository.**
 
-It helps the project grow and reach more developers.
+It helps the project grow and reach more humans.
 
 ```
-Built with ❤️ by the LuminOS Community
+Built with ❤️ by the OlyntheOS Community
 ```
